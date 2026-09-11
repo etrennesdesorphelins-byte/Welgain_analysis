@@ -17,6 +17,8 @@ export interface BuildSaveStateInput {
   events: GaitEvent[];
   stepTrials: StepTrial[];
   gaitSpeedInput: { measuredDistanceM: number | null; startTimeSec: number | null; endTimeSec: number | null };
+  isTimeEstimated: boolean;
+  assumedSampleRateHz: number | null;
 }
 
 /** 要件定義書16章「出力に含める再現性情報」を満たす保存状態を組み立てる。動画・CSV本体は含めない。 */
@@ -46,6 +48,8 @@ export function buildSaveState(input: BuildSaveStateInput): SavedAnalysisState {
       endTimeSec: input.csvValidation?.endTimeSec ?? null,
       estimatedSampleRateHz: input.csvValidation?.estimatedSampleRateHz ?? null,
       columnMapping: input.columnMapping ?? createEmptyColumnMapping(),
+      isTimeEstimated: input.isTimeEstimated,
+      assumedSampleRateHz: input.assumedSampleRateHz,
     },
     bodyMeasurements: input.bodyMeasurements,
     events: input.events,

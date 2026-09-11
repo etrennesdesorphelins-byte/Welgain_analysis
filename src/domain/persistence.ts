@@ -75,6 +75,9 @@ export const savedAnalysisStateSchema = z.object({
     endTimeSec: z.number().nullable(),
     estimatedSampleRateHz: z.number().nullable(),
     columnMapping: columnMappingSchema,
+    /** 時刻列が実測ではなく、行番号と仮定周波数から生成した推定値であるか（要件定義書16章）。 */
+    isTimeEstimated: z.boolean(),
+    assumedSampleRateHz: z.number().nullable(),
   }),
   bodyMeasurements: analysisSettingsSchema,
   events: z.array(gaitEventSchema),

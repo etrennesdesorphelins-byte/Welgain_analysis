@@ -123,6 +123,26 @@ export interface CsvValidationResult {
   medianSampleIntervalSec: number | null;
 }
 
+/** 代替時刻を保持する合成列のヘッダ名。実CSVの列名と衝突しないよう記号を含める。 */
+export const SYNTHETIC_TIME_COLUMN = "__estimated_time_sec__";
+
+/**
+ * 時刻列が実測として使用できない場合の代替手段：行番号と利用者が指定した
+ * 仮定サンプリング周波数から相対秒を機械的に生成し、CSVへ列として追加する。
+ * 実測値ではなく推定値であることを、呼び出し側（UI・保存JSON・出力）で
+ * 必ず明示すること（要件定義書16章の再現性情報に対応）。
+ */
+export function applySyntheticTimeColumn(parsed: ParsedCsv, assumedSampleRateHz: number): ParsedCsv {
+  const rows = parsed.rows.map((row, i) => ({
+    ...row,
+    [SYNTHETIC_TIME_COLUMN]: String(i / assumedSampleRateHz),
+  }));
+  const headers = parsed.headers.includes(SYNTHETIC_TIME_COLUMN)
+    ? parsed.headers
+    : [...parsed.headers, SYNTHETIC_TIME_COLUMN];
+  return { ...parsed, rows, headers };
+}
+
 /**
  * Unix時刻等の絶対時刻列を、先頭行を0秒とした相対秒へ変換する。
  * 生値の大きさからミリ秒／秒を判定する（|中央値| > 1e11 ならミリ秒とみなす）。

@@ -4,6 +4,7 @@ import { FPS_OPTIONS } from "../../domain/video";
 import type { CsvImportState } from "./useCsvImport";
 import { ColumnMappingPanel } from "./ColumnMappingPanel";
 import { ValidationIssueList } from "./ValidationIssueList";
+import { TimeRecoveryForm } from "./TimeRecoveryForm";
 
 interface FileImportPanelProps {
   onSelectVideoFile: (file: File) => void;
@@ -119,6 +120,14 @@ export function FileImportPanel({
                 ? `約 ${csv.validation.estimatedSampleRateHz.toFixed(1)} Hz`
                 : "—"}
             </dd>
+            {csv.isTimeEstimated && (
+              <>
+                <dt>時刻列</dt>
+                <dd className="file-import-panel__time-estimated-badge">
+                  推定値（行番号 × 1/{csv.assumedSampleRateHz}Hz、実測ではありません）
+                </dd>
+              </>
+            )}
           </dl>
         )}
         {csv.parsed && csv.mapping && (
@@ -132,6 +141,8 @@ export function FileImportPanel({
           </>
         )}
         {csv.validation && <ValidationIssueList issues={csv.validation.issues} />}
+        {csv.validation?.issues.some((i) => i.code === "no-valid-time-progression") &&
+          !csv.isTimeEstimated && <TimeRecoveryForm onApply={csv.applySyntheticTime} />}
       </div>
     </section>
   );

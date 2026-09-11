@@ -149,6 +149,8 @@ export function App() {
           startTimeSec: gaitSpeed.startTimeSec,
           endTimeSec: gaitSpeed.endTimeSec,
         },
+        isTimeEstimated: csv.isTimeEstimated,
+        assumedSampleRateHz: csv.assumedSampleRateHz,
       }),
     [
       subjectId,
@@ -158,6 +160,8 @@ export function App() {
       csv.parsed,
       csv.validation,
       csv.mapping,
+      csv.isTimeEstimated,
+      csv.assumedSampleRateHz,
       analysisSettings.settings,
       eventsState.events,
       stepTrialsState.trials,
@@ -184,8 +188,18 @@ export function App() {
       gaitSpeed.replaceInput(data.gaitSpeedInput);
       if (csv.parsed) {
         (Object.entries(data.csv.columnMapping) as [CsvColumnKey, string | null][]).forEach(
-          ([key, header]) => csv.setColumnMapping(key, header),
+          ([key, header]) => {
+            // 時刻列が推定値だった場合、保存された合成列名をそのまま割り当てても
+            // 再選択したCSVには存在しないため、applySyntheticTimeで作り直す。
+            if (key === "time") return;
+            csv.setColumnMapping(key, header);
+          },
         );
+        if (data.csv.isTimeEstimated && data.csv.assumedSampleRateHz !== null) {
+          csv.applySyntheticTime(data.csv.assumedSampleRateHz);
+        } else {
+          csv.setColumnMapping("time", data.csv.columnMapping.time);
+        }
       }
       setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials, data.gaitSpeedInput));
     },

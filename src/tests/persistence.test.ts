@@ -19,6 +19,8 @@ function makeValidState(): SavedAnalysisState {
       endTimeSec: 15.2,
       estimatedSampleRateHz: 20,
       columnMapping: { ...createEmptyColumnMapping(), time: "UnixTime" },
+      isTimeEstimated: false,
+      assumedSampleRateHz: null,
     },
     bodyMeasurements: { thighLength: 52, shankLength: 49, pelvisWidth: 31, lengthUnit: "cm" },
     events: [{ id: "e1", type: "Rt_IC", videoTimeSec: 0, estimatedFrame: 0, csvTimeSec: 0 }],
