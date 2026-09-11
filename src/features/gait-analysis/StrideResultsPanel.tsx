@@ -1,5 +1,5 @@
 import type { SummaryStatistics } from "../../domain/statistics";
-import type { StrideResultsState } from "./useStrideResults";
+import type { StrideRangeResultsState } from "./useStrideRangeResults";
 
 function fmt(v: number | null, digits = 2): string {
   return v === null ? "NA" : v.toFixed(digits);
@@ -58,8 +58,8 @@ function SummaryTable({
   );
 }
 
-/** 要件定義書9章：IC時歩幅一覧・左右別要約統計の表示。 */
-export function StrideResultsPanel({ state }: { state: StrideResultsState }) {
+/** 要件定義書9章改訂：歩幅波形の範囲選択から検出したステップ歩幅一覧・左右別要約統計の表示。 */
+export function StrideResultsPanel({ state }: { state: StrideRangeResultsState }) {
   if (state.isConfigIncomplete) {
     return (
       <p className="stride-results-panel__empty">
@@ -68,52 +68,53 @@ export function StrideResultsPanel({ state }: { state: StrideResultsState }) {
     );
   }
 
-  if (state.results.length === 0 && state.missing.length === 0) {
-    return <p className="stride-results-panel__empty">Rt_IC・Lt_ICイベントを登録すると歩幅を算出します。</p>;
+  if (!state.hasSelection) {
+    return (
+      <p className="stride-results-panel__empty">
+        下の歩幅波形をドラッグして範囲を選択すると、その範囲内のステップ歩幅を自動検出します。
+      </p>
+    );
+  }
+
+  if (state.results.length === 0) {
+    return (
+      <p className="stride-results-panel__empty">
+        選択した範囲内に極大・極小点（ステップ）が見つかりませんでした。範囲を広げてください。
+      </p>
+    );
   }
 
   return (
     <div>
-      <h4>IC時歩幅一覧</h4>
+      <h4>検出ステップ歩幅一覧</h4>
       <table className="event-list-table">
         <thead>
           <tr>
-            <th>種類</th>
-            <th>動画時刻</th>
+            <th>側</th>
+            <th>CSV時刻(秒)</th>
+            <th>動画時刻(推定)</th>
             <th>元の符号付き歩幅</th>
-            <th>IC側基準歩幅</th>
+            <th>側基準歩幅</th>
             <th>絶対歩幅</th>
             <th>骨盤補正あり歩幅</th>
-            <th>IC側基準（補正あり）</th>
-            <th>補間</th>
+            <th>側基準（補正あり）</th>
           </tr>
         </thead>
         <tbody>
           {state.results.map((r) => (
-            <tr key={r.eventId}>
-              <td>{r.eventType}</td>
+            <tr key={r.index}>
+              <td>{r.side === "Rt" ? "右" : "左"}</td>
+              <td>{r.csvTimeSec.toFixed(2)}</td>
               <td>{r.videoTimeSec.toFixed(2)}</td>
               <td>{fmt(r.signedStride)}</td>
-              <td>{fmt(r.icRelativeStride)}</td>
+              <td>{fmt(r.sideRelativeStride)}</td>
               <td>{fmt(r.absoluteStrideValue)}</td>
               <td>{fmt(r.pelvisCorrectedStride)}</td>
-              <td>{fmt(r.icRelativePelvisCorrectedStride)}</td>
-              <td>{r.isInterpolated ? "補間値" : "実測点"}</td>
+              <td>{fmt(r.sideRelativePelvisCorrectedStride)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      {state.missing.length > 0 && (
-        <ul className="validation-issue-list">
-          {state.missing.map((m) => (
-            <li key={m.eventId} className="validation-issue validation-issue--warning">
-              <span className="validation-issue__badge">警告</span>
-              {m.eventType}: {m.reason}
-            </li>
-          ))}
-        </ul>
-      )}
 
       <SummaryTable
         title="左右別要約統計（骨盤補正なし）"

@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState, type PointerEvent } from "react";
 import type { GaitEvent } from "../../domain/events";
+import type { CycleSide } from "../../domain/gaitCycles";
 import { SIDE_COLOR } from "./chartConstants";
 
 export interface RawWaveformSeries {
@@ -10,6 +11,17 @@ export interface RawWaveformSeries {
   values: number[];
 }
 
+export interface RawWaveformRange {
+  startSec: number;
+  endSec: number;
+}
+
+export interface RawWaveformPeakMarker {
+  csvTimeSec: number;
+  value: number;
+  side: CycleSide;
+}
+
 interface RawWaveformChartProps {
   title: string;
   csvTimes: number[];
@@ -18,6 +30,12 @@ interface RawWaveformChartProps {
   unit?: string;
   /** タグ付けした歩行イベントを時間軸上に表示する（省略時は非表示）。 */
   events?: GaitEvent[];
+  /** ドラッグで選択した時間範囲（範囲選択機能を使わない場合は省略）。 */
+  selection?: RawWaveformRange | null;
+  /** 指定するとドラッグによる範囲選択を有効化する。 */
+  onSelectionChange?: (range: RawWaveformRange | null) => void;
+  /** 波形上に表示する、自動検出したピーク（歩幅のステップ等）。 */
+  peakMarkers?: RawWaveformPeakMarker[];
 }
 
 const WIDTH = 720;
@@ -28,7 +46,17 @@ const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
 const EVENT_MARKER_SIZE = 7;
 
 /** 要件定義書12章：「元時間波形」（正規化前、CSV全体の時間軸そのまま）の表示。系列数は可変。 */
-export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawWaveformChartProps) {
+export function RawWaveformChart({
+  title,
+  csvTimes,
+  series,
+  unit,
+  events,
+  selection,
+  onSelectionChange,
+  peakMarkers,
+}: RawWaveformChartProps) {
+  const [dragStartSec, setDragStartSec] = useState<number | null>(null);
   const maxTime = csvTimes.length > 0 ? csvTimes[csvTimes.length - 1] : 1;
 
   const { minY, maxY } = useMemo(() => {
@@ -57,6 +85,10 @@ export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawW
   function yForValue(v: number): number {
     return MARGIN.top + PLOT_HEIGHT * (1 - (v - minY) / (maxY - minY));
   }
+  function timeForClientX(clientX: number, rect: DOMRect): number {
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return ratio * maxTime;
+  }
 
   function pathFor(values: number[]): string {
     const segments: string[] = [];
@@ -73,12 +105,31 @@ export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawW
     return segments.join(" ");
   }
 
+  function handlePointerDown(e: PointerEvent<SVGRectElement>) {
+    if (!onSelectionChange) return;
+    const t = timeForClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+    setDragStartSec(t);
+    onSelectionChange({ startSec: t, endSec: t });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function handlePointerMove(e: PointerEvent<SVGRectElement>) {
+    if (dragStartSec === null || !onSelectionChange) return;
+    const t = timeForClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+    onSelectionChange({ startSec: Math.min(dragStartSec, t), endSec: Math.max(dragStartSec, t) });
+  }
+  function handlePointerUp() {
+    setDragStartSec(null);
+  }
+
   if (csvTimes.length === 0) {
     return <p className="waveform-chart__empty">CSVが読み込まれていません。</p>;
   }
 
   const yTicks = [minY, (minY + maxY) / 2, maxY];
   const visibleEvents = (events ?? []).filter((e) => e.csvTimeSec >= 0 && e.csvTimeSec <= maxTime);
+  const visiblePeaks = (peakMarkers ?? []).filter(
+    (p) => Number.isFinite(p.value) && p.csvTimeSec >= 0 && p.csvTimeSec <= maxTime,
+  );
 
   return (
     <div className="waveform-chart">
@@ -114,6 +165,20 @@ export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawW
         <text x={MARGIN.left + PLOT_WIDTH} y={HEIGHT - 6} fontSize={10} fill="#898781" textAnchor="end">
           {maxTime.toFixed(1)}秒
         </text>
+
+        {selection && (
+          <rect
+            x={xForTime(selection.startSec)}
+            y={MARGIN.top}
+            width={Math.max(0, xForTime(selection.endSec) - xForTime(selection.startSec))}
+            height={PLOT_HEIGHT}
+            fill="#52514e"
+            fillOpacity={0.08}
+            stroke="#52514e"
+            strokeOpacity={0.4}
+            strokeWidth={1}
+          />
+        )}
 
         {visibleEvents.map((event) => {
           const side = event.type.startsWith("Rt") ? "Rt" : "Lt";
@@ -169,6 +234,33 @@ export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawW
             </g>
           );
         })}
+
+        {visiblePeaks.map((p, i) => (
+          <circle
+            key={`${p.csvTimeSec}-${i}`}
+            cx={xForTime(p.csvTimeSec)}
+            cy={yForValue(p.value)}
+            r={4.5}
+            fill={SIDE_COLOR[p.side]}
+            stroke="#fcfcfb"
+            strokeWidth={1.5}
+          />
+        ))}
+
+        {onSelectionChange && (
+          <rect
+            x={MARGIN.left}
+            y={MARGIN.top}
+            width={PLOT_WIDTH}
+            height={PLOT_HEIGHT}
+            fill="transparent"
+            style={{ cursor: "crosshair" }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+          />
+        )}
       </svg>
       <div className="waveform-chart__legend">
         {series.map((s) => (
@@ -194,6 +286,14 @@ export function RawWaveformChart({ title, csvTimes, series, unit, events }: RawW
               Off（離地）
             </span>
           </>
+        )}
+        {visiblePeaks.length > 0 && (
+          <span className="waveform-chart__legend-item">
+            <svg width={12} height={12} aria-hidden="true">
+              <circle cx={6} cy={6} r={4} fill="#6b6a63" stroke="#fcfcfb" strokeWidth={1} />
+            </svg>
+            検出ステップ
+          </span>
         )}
       </div>
     </div>

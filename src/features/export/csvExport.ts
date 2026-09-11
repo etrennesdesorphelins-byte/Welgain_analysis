@@ -1,7 +1,7 @@
 import type { GaitEvent } from "../../domain/events";
 import type { CycleSide, GaitPhaseTiming } from "../../domain/gaitCycles";
 import { phaseTimingPercent } from "../../domain/gaitCycles";
-import type { StrideResult, StrideResultsState } from "../gait-analysis/useStrideResults";
+import type { StrideRangeResultsState, StrideStepResult } from "../gait-analysis/useStrideRangeResults";
 import type { StepResult } from "../step-analysis/useStepResults";
 
 function escapeCsvField(value: string | number): string {
@@ -40,42 +40,38 @@ export function buildEventsCsv(events: GaitEvent[]): string {
   );
 }
 
-/** IC時歩幅一覧CSV（formulas.md第6〜7章の各値を保持）。 */
-export function buildStrideResultsCsv(results: StrideResult[]): string {
+/** 要件定義書9章改訂：検出ステップ歩幅一覧CSV（formulas.md第6〜7章の各値を保持）。 */
+export function buildStrideResultsCsv(results: StrideStepResult[]): string {
   return toCsvText(
     [
-      "event_type",
-      "ic_side",
-      "video_time_sec",
+      "side",
       "csv_time_sec",
+      "estimated_video_time_sec",
       "signed_stride",
-      "ic_relative_stride",
+      "side_relative_stride",
       "absolute_stride",
       "pelvis_corrected_stride",
-      "ic_relative_pelvis_corrected_stride",
-      "is_interpolated",
+      "side_relative_pelvis_corrected_stride",
     ],
     results.map((r) => [
-      r.eventType,
-      r.icSide,
-      r.videoTimeSec,
+      r.side,
       r.csvTimeSec,
+      r.videoTimeSec,
       r.signedStride,
-      r.icRelativeStride,
+      r.sideRelativeStride,
       r.absoluteStrideValue,
       r.pelvisCorrectedStride,
-      r.icRelativePelvisCorrectedStride,
-      r.isInterpolated ? "true" : "false",
+      r.sideRelativePelvisCorrectedStride,
     ]),
   );
 }
 
 /** 要件定義書15.2-3：左右別要約統計CSV。 */
-export function buildSummaryStatsCsv(state: StrideResultsState): string {
+export function buildSummaryStatsCsv(state: StrideRangeResultsState): string {
   const toRow = (
     variant: string,
     side: string,
-    stats: StrideResultsState["rightSummary"],
+    stats: StrideRangeResultsState["rightSummary"],
   ): (string | number)[] => [
     variant,
     side,

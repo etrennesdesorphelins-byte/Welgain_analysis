@@ -21,6 +21,20 @@ export function videoToCsvTime(
   return { csvTimeSec, wasClamped: csvTimeSec !== raw };
 }
 
+/**
+ * videoToCsvTimeの逆写像。歩幅波形上で検出したステップのCSV時刻から、
+ * 対応するおおよその動画時刻を求める（比例同期、要件定義書7.1）。
+ */
+export function csvToVideoTime(
+  csvTimeSec: number,
+  videoDurationSec: number,
+  csvDurationSec: number,
+): number {
+  const ratio = csvDurationSec > 0 ? csvTimeSec / csvDurationSec : 0;
+  const raw = ratio * videoDurationSec;
+  return Math.min(Math.max(raw, 0), videoDurationSec);
+}
+
 export interface SyncDurationDifference {
   diffSec: number;
   diffRatio: number;

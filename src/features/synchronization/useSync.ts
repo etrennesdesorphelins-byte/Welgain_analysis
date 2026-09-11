@@ -1,8 +1,14 @@
 import { useMemo } from "react";
-import { evaluateSyncDurationDifference, videoToCsvTime, type SyncDurationDifference } from "../../domain/sync";
+import {
+  csvToVideoTime,
+  evaluateSyncDurationDifference,
+  videoToCsvTime,
+  type SyncDurationDifference,
+} from "../../domain/sync";
 
 export interface SyncState {
   toCsvTime: (videoTimeSec: number) => number;
+  toVideoTime: (csvTimeSec: number) => number;
   durationDiff: SyncDurationDifference | null;
   videoDurationSec: number | null;
   csvDurationSec: number | null;
@@ -23,6 +29,10 @@ export function useSync(
       toCsvTime: (videoTimeSec: number) => {
         if (videoDurationSec === null || csvDurationSec === null) return 0;
         return videoToCsvTime(videoTimeSec, videoDurationSec, csvDurationSec).csvTimeSec;
+      },
+      toVideoTime: (csvTimeSec: number) => {
+        if (videoDurationSec === null || csvDurationSec === null) return 0;
+        return csvToVideoTime(csvTimeSec, videoDurationSec, csvDurationSec);
       },
       durationDiff,
       videoDurationSec,

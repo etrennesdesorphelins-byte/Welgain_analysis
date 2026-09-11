@@ -18,7 +18,7 @@ import { SyncInfoPanel } from "./features/synchronization/SyncInfoPanel";
 import { useEvents } from "./features/events/useEvents";
 import { EventRegistrationButtons } from "./features/events/EventRegistrationButtons";
 import { EventList } from "./features/events/EventList";
-import { useStrideResults } from "./features/gait-analysis/useStrideResults";
+import { useStrideRangeResults, type StrideRangeSelection } from "./features/gait-analysis/useStrideRangeResults";
 import { StrideResultsPanel } from "./features/gait-analysis/StrideResultsPanel";
 import { useStrideWaveform } from "./features/gait-analysis/useStrideWaveform";
 import { StrideWaveformPanel } from "./features/gait-analysis/StrideWaveformPanel";
@@ -32,12 +32,15 @@ import { buildSaveState } from "./features/persistence/buildSaveState";
 import { SaveLoadPanel } from "./features/persistence/SaveLoadPanel";
 import { useUnsavedChangesWarning } from "./features/persistence/useUnsavedChangesWarning";
 import { ExportButtons } from "./features/export/ExportButtons";
+import { ModeSelectPage, type AnalysisMode } from "./features/app-shell/ModeSelectPage";
 
 function dirtySnapshot(events: unknown, stepTrials: unknown): string {
   return JSON.stringify({ events, stepTrials });
 }
 
 export function App() {
+  const [mode, setMode] = useState<AnalysisMode | null>(null);
+
   const video = useVideoFile();
   const csv = useCsvImport();
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
@@ -70,20 +73,16 @@ export function App() {
     onResetView: zoomPan.reset,
   });
 
-  const strideResults = useStrideResults(
-    csv.parsed,
-    csv.mapping,
-    analysisSettings.settings,
-    eventsState.events,
-  );
+  const [strideRangeSelection, setStrideRangeSelection] = useState<StrideRangeSelection | null>(null);
   const gaitPhaseTiming = useGaitPhaseTiming(eventsState.events);
   const strideWaveform = useStrideWaveform(csv.parsed, csv.mapping, analysisSettings.settings);
+  const strideResults = useStrideRangeResults(strideWaveform, strideRangeSelection, sync.toVideoTime);
   const stepResults = useStepResults(csv.parsed, csv.mapping, analysisSettings.settings, stepTrialsState.trials);
 
   const canRegisterEvents =
     Boolean(video.objectUrl) && Boolean(csv.parsed) && !csv.validation?.hasBlockingError;
 
-  // 要件定義書15.3：未保存の解析状態を検出する（最後の保存／読込時点からの差分）。
+  // 要件定義書15.3：未保存の解析状態を検出する(最後の保存／読込時点からの差分)。
   // ref.currentの更新は再レンダリングを起こさないため、beforeunloadリスナーが古いhasUnsavedChangesを
   // 参照し続けるバグになる。保存直後もクリーン判定が即座に反映されるよう、stateとして保持する。
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
@@ -186,6 +185,39 @@ export function App() {
     [analysisSettings, eventsState, stepTrialsState, csv],
   );
 
+  const sharedSetupPanel = (
+    <div className="app-main__side-top">
+      <FileImportPanel
+        onSelectVideoFile={handleSelectVideoFile}
+        videoFileName={video.file?.name ?? null}
+        videoMetadata={videoMetadata}
+        fpsOverride={fpsOverride}
+        onFpsOverrideChange={setFpsOverride}
+        csv={guardedCsv}
+      />
+      <hr />
+      <BodyMeasurementsForm state={analysisSettings} />
+      <hr />
+      <h3>同期情報</h3>
+      <SyncInfoPanel sync={sync} currentVideoTimeSec={playback.currentTimeSec} />
+      <hr />
+      <h3>保存・再読込</h3>
+      <SaveLoadPanel
+        subjectId={subjectId}
+        onSubjectIdChange={setSubjectId}
+        trialName={trialNameInput}
+        onTrialNameChange={setTrialNameInput}
+        buildCurrentSaveState={buildCurrentSaveState}
+        currentVideoFile={video.file ? { fileName: video.file.name, fileSizeBytes: video.file.size } : null}
+        currentCsvFile={
+          csv.parsed ? { fileName: csv.parsed.fileName, fileSizeBytes: csv.parsed.fileSizeBytes } : null
+        }
+        onApply={handleApplyLoadedState}
+        onSaved={handleSaved}
+      />
+    </div>
+  );
+
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -194,98 +226,113 @@ export function App() {
         </h1>
       </header>
       <AppInfoPanel />
-      <main className="app-main">
-        <section className="app-main__video">
-          <VideoPlayer
-            videoRef={videoRef}
-            playback={playback}
-            zoomPan={zoomPan}
-            file={video.file}
-            objectUrl={video.objectUrl}
-            fps={effectiveFps}
-            events={eventsState.events}
-            onMetadataLoaded={setVideoMetadata}
-          />
-          <div className="app-main__event-registration">
-            <h3>イベント登録</h3>
-            <EventRegistrationButtons
-              eventsState={eventsState}
-              currentVideoTimeSec={playback.currentTimeSec}
-              fps={effectiveFps}
-              disabled={!canRegisterEvents}
-            />
-            {!canRegisterEvents && (
-              <p className="app-main__placeholder">
-                動画とCSV（エラーなし）を読み込むとイベントを登録できます。
-              </p>
-            )}
-          </div>
-          <div className="app-main__event-registration">
-            <h3>ステップ動作登録</h3>
-            <StepTrialForm
-              state={stepTrialsState}
-              currentVideoTimeSec={playback.currentTimeSec}
-              disabled={!canRegisterEvents}
-            />
-          </div>
-        </section>
-        <aside className="app-main__side">
-          <div className="app-main__side-top">
-            <FileImportPanel
-              onSelectVideoFile={handleSelectVideoFile}
-              videoFileName={video.file?.name ?? null}
-              videoMetadata={videoMetadata}
-              fpsOverride={fpsOverride}
-              onFpsOverrideChange={setFpsOverride}
-              csv={guardedCsv}
-            />
-            <hr />
-            <BodyMeasurementsForm state={analysisSettings} />
-            <hr />
-            <h3>同期情報</h3>
-            <SyncInfoPanel sync={sync} currentVideoTimeSec={playback.currentTimeSec} />
-            <hr />
-            <h3>保存・再読込</h3>
-            <SaveLoadPanel
-              subjectId={subjectId}
-              onSubjectIdChange={setSubjectId}
-              trialName={trialNameInput}
-              onTrialNameChange={setTrialNameInput}
-              buildCurrentSaveState={buildCurrentSaveState}
-              currentVideoFile={video.file ? { fileName: video.file.name, fileSizeBytes: video.file.size } : null}
-              currentCsvFile={
-                csv.parsed ? { fileName: csv.parsed.fileName, fileSizeBytes: csv.parsed.fileSizeBytes } : null
-              }
-              onApply={handleApplyLoadedState}
-              onSaved={handleSaved}
-            />
-          </div>
-          <div className="app-main__side-bottom">
-            <h3>登録イベント一覧</h3>
-            <EventList eventsState={eventsState} />
-            <hr />
-            <h3>歩幅結果</h3>
-            <StrideResultsPanel state={strideResults} />
-            <hr />
-            <h3>歩幅波形</h3>
-            <StrideWaveformPanel state={strideWaveform} events={eventsState.events} />
-            <hr />
-            <h3>歩行周期・ケイデンス</h3>
-            <GaitPhaseTimingPanel state={gaitPhaseTiming} />
-            <hr />
-            <h3>ステップ動作結果</h3>
-            <StepResultsPanel trialsState={stepTrialsState} resultsState={stepResults} />
-            <hr />
-            <ExportButtons
-              events={eventsState.events}
-              strideResults={strideResults}
-              gaitPhaseTiming={gaitPhaseTiming}
-              stepResults={stepResults}
-              trialName={trialName}
-            />
-          </div>
-        </aside>
-      </main>
+
+      {mode === null ? (
+        <ModeSelectPage onSelect={setMode} />
+      ) : (
+        <>
+          <nav className="app-mode-nav">
+            <button
+              type="button"
+              className={`app-mode-nav__tab${mode === "gait" ? " app-mode-nav__tab--active" : ""}`}
+              onClick={() => setMode("gait")}
+            >
+              歩行解析
+            </button>
+            <button
+              type="button"
+              className={`app-mode-nav__tab${mode === "step" ? " app-mode-nav__tab--active" : ""}`}
+              onClick={() => setMode("step")}
+            >
+              ステップ動作解析
+            </button>
+            <button type="button" className="app-mode-nav__back" onClick={() => setMode(null)}>
+              解析選択に戻る
+            </button>
+          </nav>
+
+          <main className="app-main">
+            <section className="app-main__video">
+              <VideoPlayer
+                videoRef={videoRef}
+                playback={playback}
+                zoomPan={zoomPan}
+                file={video.file}
+                objectUrl={video.objectUrl}
+                fps={effectiveFps}
+                events={eventsState.events}
+                onMetadataLoaded={setVideoMetadata}
+              />
+              {mode === "gait" ? (
+                <div className="app-main__event-registration">
+                  <h3>イベント登録</h3>
+                  <EventRegistrationButtons
+                    eventsState={eventsState}
+                    currentVideoTimeSec={playback.currentTimeSec}
+                    fps={effectiveFps}
+                    disabled={!canRegisterEvents}
+                  />
+                  {!canRegisterEvents && (
+                    <p className="app-main__placeholder">
+                      動画とCSV（エラーなし）を読み込むとイベントを登録できます。
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="app-main__event-registration">
+                  <h3>ステップ動作登録</h3>
+                  <StepTrialForm
+                    state={stepTrialsState}
+                    currentVideoTimeSec={playback.currentTimeSec}
+                    disabled={!canRegisterEvents}
+                  />
+                </div>
+              )}
+            </section>
+            <aside className="app-main__side">
+              {sharedSetupPanel}
+              <div className="app-main__side-bottom">
+                {mode === "gait" ? (
+                  <>
+                    <h3>登録イベント一覧</h3>
+                    <EventList eventsState={eventsState} />
+                    <hr />
+                    <h3>歩幅波形</h3>
+                    <StrideWaveformPanel
+                      state={strideWaveform}
+                      events={eventsState.events}
+                      selection={strideRangeSelection}
+                      onSelectionChange={setStrideRangeSelection}
+                      strideResults={strideResults}
+                    />
+                    <hr />
+                    <h3>歩幅結果</h3>
+                    <StrideResultsPanel state={strideResults} />
+                    <hr />
+                    <h3>歩行周期・ケイデンス</h3>
+                    <GaitPhaseTimingPanel state={gaitPhaseTiming} />
+                    <hr />
+                    <ExportButtons
+                      scope="gait"
+                      events={eventsState.events}
+                      strideResults={strideResults}
+                      gaitPhaseTiming={gaitPhaseTiming}
+                      trialName={trialName}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h3>ステップ動作結果</h3>
+                    <StepResultsPanel trialsState={stepTrialsState} resultsState={stepResults} />
+                    <hr />
+                    <ExportButtons scope="step" stepResults={stepResults} trialName={trialName} />
+                  </>
+                )}
+              </div>
+            </aside>
+          </main>
+        </>
+      )}
     </div>
   );
 }
