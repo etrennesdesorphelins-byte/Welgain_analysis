@@ -106,17 +106,17 @@ export function buildGaitPhaseTimingCsv(
     "start_video_time_sec",
     "cycle_time_sec",
     "stance_time_sec",
-    "stance_pct",
+    "stance_%",
     "swing_time_sec",
-    "swing_pct",
+    "swing_%",
     "loading_response_sec",
-    "loading_response_pct",
+    "loading_response_%",
     "single_support_sec",
-    "single_support_pct",
+    "single_support_%",
     "pre_swing_sec",
-    "pre_swing_pct",
+    "pre_swing_%",
     "double_support_sec",
-    "double_support_pct",
+    "double_support_%",
     "is_complete",
   ];
 
@@ -162,7 +162,7 @@ export function buildWaveformCsv(data: Record<CycleSide, JointWaveformResult>): 
     ]);
   }
   return toCsvText(
-    ["point_pct", "right_mean", "right_sd", "right_valid_count", "left_mean", "left_sd", "left_valid_count"],
+    ["point_%", "right_mean", "right_sd", "right_valid_count", "left_mean", "left_sd", "left_valid_count"],
     rows,
   );
 }
