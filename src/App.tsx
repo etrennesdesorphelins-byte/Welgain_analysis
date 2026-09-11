@@ -20,6 +20,8 @@ import { EventRegistrationButtons } from "./features/events/EventRegistrationBut
 import { EventList } from "./features/events/EventList";
 import { useStrideResults } from "./features/gait-analysis/useStrideResults";
 import { StrideResultsPanel } from "./features/gait-analysis/StrideResultsPanel";
+import { useStrideWaveform } from "./features/gait-analysis/useStrideWaveform";
+import { StrideWaveformPanel } from "./features/gait-analysis/StrideWaveformPanel";
 import { useGaitPhaseTiming } from "./features/gait-phase-timing/useGaitPhaseTiming";
 import { GaitPhaseTimingPanel } from "./features/gait-phase-timing/GaitPhaseTimingPanel";
 import { useWaveforms } from "./features/waveform/useWaveforms";
@@ -85,6 +87,7 @@ export function App() {
   );
   const gaitPhaseTiming = useGaitPhaseTiming(eventsState.events);
   const waveforms = useWaveforms(csv.parsed, csv.mapping, eventsState.events);
+  const strideWaveform = useStrideWaveform(csv.parsed, csv.mapping, analysisSettings.settings);
   const stepResults = useStepResults(csv.parsed, csv.mapping, analysisSettings.settings, stepTrialsState.trials);
 
   const canRegisterEvents =
@@ -290,6 +293,9 @@ export function App() {
             <hr />
             <h3>歩幅結果</h3>
             <StrideResultsPanel state={strideResults} />
+            <hr />
+            <h3>歩幅波形</h3>
+            <StrideWaveformPanel state={strideWaveform} />
             <hr />
             <h3>歩行周期・ケイデンス</h3>
             <GaitPhaseTimingPanel state={gaitPhaseTiming} />

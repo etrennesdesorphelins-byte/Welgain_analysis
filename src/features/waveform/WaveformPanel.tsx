@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { WaveformChart } from "./WaveformChart";
 import { RawWaveformChart } from "./RawWaveformChart";
+import { SIDE_COLOR, SIDE_DASH, SIDE_LABEL } from "./chartConstants";
 import type { WaveformJoint, WaveformsState } from "./useWaveforms";
+
+const SIDES = ["Rt", "Lt"] as const;
 
 const JOINT_LABEL: Record<WaveformJoint, string> = { hip: "股関節角度", knee: "膝関節角度" };
 
@@ -63,7 +66,17 @@ export function WaveformPanel({ state }: { state: WaveformsState }) {
           showSd={showSd}
         />
       ) : (
-        <RawWaveformChart title={JOINT_LABEL[joint]} csvTimes={state.csvTimes} values={state.rawValues[joint]} />
+        <RawWaveformChart
+          title={JOINT_LABEL[joint]}
+          csvTimes={state.csvTimes}
+          series={SIDES.map((side) => ({
+            key: side,
+            label: SIDE_LABEL[side],
+            color: SIDE_COLOR[side],
+            dash: SIDE_DASH[side],
+            values: state.rawValues[joint][side],
+          }))}
+        />
       )}
     </div>
   );

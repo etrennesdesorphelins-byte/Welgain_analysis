@@ -1,29 +1,34 @@
 import { useMemo } from "react";
-import type { CycleSide } from "../../domain/gaitCycles";
-import { SIDE_COLOR, SIDE_DASH, SIDE_LABEL } from "./chartConstants";
+
+export interface RawWaveformSeries {
+  key: string;
+  label: string;
+  color: string;
+  dash?: string;
+  values: number[];
+}
 
 interface RawWaveformChartProps {
   title: string;
   csvTimes: number[];
-  values: Record<CycleSide, number[]>;
+  series: RawWaveformSeries[];
 }
 
-const SIDES: CycleSide[] = ["Rt", "Lt"];
 const WIDTH = 720;
 const HEIGHT = 220;
 const MARGIN = { top: 12, right: 16, bottom: 28, left: 46 };
 const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
 
-/** 要件定義書12章：「元時間波形」（正規化前、CSV全体の時間軸そのまま）の表示。 */
-export function RawWaveformChart({ title, csvTimes, values }: RawWaveformChartProps) {
+/** 要件定義書12章：「元時間波形」（正規化前、CSV全体の時間軸そのまま）の表示。系列数は可変。 */
+export function RawWaveformChart({ title, csvTimes, series }: RawWaveformChartProps) {
   const maxTime = csvTimes.length > 0 ? csvTimes[csvTimes.length - 1] : 1;
 
   const { minY, maxY } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
-    for (const side of SIDES) {
-      for (const v of values[side]) {
+    for (const s of series) {
+      for (const v of s.values) {
         if (Number.isFinite(v)) {
           min = Math.min(min, v);
           max = Math.max(max, v);
@@ -37,7 +42,7 @@ export function RawWaveformChart({ title, csvTimes, values }: RawWaveformChartPr
     }
     const pad = (max - min) * 0.1;
     return { minY: min - pad, maxY: max + pad };
-  }, [values]);
+  }, [series]);
 
   function xForTime(t: number): number {
     return MARGIN.left + (maxTime > 0 ? (PLOT_WIDTH * t) / maxTime : 0);
@@ -46,10 +51,10 @@ export function RawWaveformChart({ title, csvTimes, values }: RawWaveformChartPr
     return MARGIN.top + PLOT_HEIGHT * (1 - (v - minY) / (maxY - minY));
   }
 
-  function pathFor(side: CycleSide): string {
+  function pathFor(values: number[]): string {
     const segments: string[] = [];
     let drawing = false;
-    values[side].forEach((v, i) => {
+    values.forEach((v, i) => {
       const t = csvTimes[i];
       if (!Number.isFinite(v) || !Number.isFinite(t)) {
         drawing = false;
@@ -83,26 +88,26 @@ export function RawWaveformChart({ title, csvTimes, values }: RawWaveformChartPr
         <text x={MARGIN.left + PLOT_WIDTH} y={HEIGHT - 6} fontSize={10} fill="#898781" textAnchor="end">
           {maxTime.toFixed(1)}秒
         </text>
-        {SIDES.map((side) => (
+        {series.map((s) => (
           <path
-            key={side}
-            d={pathFor(side)}
+            key={s.key}
+            d={pathFor(s.values)}
             fill="none"
-            stroke={SIDE_COLOR[side]}
+            stroke={s.color}
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeDasharray={SIDE_DASH[side]}
+            strokeDasharray={s.dash}
           />
         ))}
       </svg>
       <div className="waveform-chart__legend">
-        {SIDES.map((side) => (
-          <span key={side} className="waveform-chart__legend-item">
+        {series.map((s) => (
+          <span key={s.key} className="waveform-chart__legend-item">
             <svg width={20} height={10} aria-hidden="true">
-              <line x1={0} y1={5} x2={20} y2={5} stroke={SIDE_COLOR[side]} strokeWidth={2} strokeDasharray={SIDE_DASH[side]} />
+              <line x1={0} y1={5} x2={20} y2={5} stroke={s.color} strokeWidth={2} strokeDasharray={s.dash} />
             </svg>
-            {SIDE_LABEL[side]}
+            {s.label}
           </span>
         ))}
       </div>
