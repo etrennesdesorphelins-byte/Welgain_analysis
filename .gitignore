@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+*.tsbuildinfo
+
+# 実データ・個人情報を含む可能性のあるファイルは誤ってコミットしない
+*.mp4
+*.mov
+*.avi
+糸瀬*
+*計算済み*.xlsx
+
+# 実際の被験者動画から切り出したフレーム画像（Phase 0の符号確認用証拠）。
+# 匿名化されていない実データのためリポジトリには含めない。
+docs/assets/

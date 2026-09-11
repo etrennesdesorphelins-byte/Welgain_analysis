@@ -1,0 +1,186 @@
+import {
+  CSV_COLUMN_DEFINITIONS,
+  toRelativeSeconds,
+  type ColumnMapping,
+  type CsvValidationResult,
+  type ParsedCsv,
+  type ValidationIssue,
+} from "../../domain/csv";
+
+const SUSPICIOUS_ANGLE_ABS_DEG = 150;
+/** サンプリング間隔の相対ばらつき（中央値に対する比）がこれを超えたら警告。 */
+const SAMPLE_INTERVAL_VARIATION_WARN_RATIO = 0.5;
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * 要件定義書5章のCSV検証を行う。重大な不備（時刻列欠落・有効行不足）はerror、
+ * それ以外（時刻逆転・欠損値・範囲外値・サンプリング不安定）はwarningとして報告する。
+ */
+export function validateCsv(
+  parsed: ParsedCsv,
+  mapping: ColumnMapping,
+): CsvValidationResult {
+  const issues: ValidationIssue[] = [];
+
+  if (!mapping.time) {
+    issues.push({
+      severity: "error",
+      code: "missing-time-column",
+      message: "時刻列が割り当てられていません。列割当を確認してください。",
+    });
+    return {
+      issues,
+      hasBlockingError: true,
+      rowCount: parsed.rows.length,
+      startTimeSec: null,
+      endTimeSec: null,
+      durationSec: null,
+      estimatedSampleRateHz: null,
+      medianSampleIntervalSec: null,
+    };
+  }
+
+  for (const def of CSV_COLUMN_DEFINITIONS) {
+    if (!def.required && !mapping[def.key]) {
+      issues.push({
+        severity: "warning",
+        code: "unmapped-optional-column",
+        message: `${def.label}の列が割り当てられていません。関連する解析結果は算出されません。`,
+      });
+    }
+  }
+
+  if (parsed.rows.length < 2) {
+    issues.push({
+      severity: "error",
+      code: "insufficient-rows",
+      message: "有効なデータ行が2行未満のため解析できません。",
+    });
+    return {
+      issues,
+      hasBlockingError: true,
+      rowCount: parsed.rows.length,
+      startTimeSec: null,
+      endTimeSec: null,
+      durationSec: null,
+      estimatedSampleRateHz: null,
+      medianSampleIntervalSec: null,
+    };
+  }
+
+  const timeKey = mapping.time;
+  const rawTimes = parsed.rows.map((row) => Number.parseFloat(row[timeKey]));
+  const missingTimeCount = rawTimes.filter((v) => !Number.isFinite(v)).length;
+  if (missingTimeCount > 0) {
+    issues.push({
+      severity: "warning",
+      code: "missing-time-values",
+      message: `時刻列に欠損または非数値が${missingTimeCount}件あります。`,
+    });
+  }
+
+  const relativeTimes = toRelativeSeconds(rawTimes);
+
+  let reversalCount = 0;
+  let duplicateCount = 0;
+  const intervals: number[] = [];
+  for (let i = 1; i < relativeTimes.length; i++) {
+    const prev = relativeTimes[i - 1];
+    const curr = relativeTimes[i];
+    if (!Number.isFinite(prev) || !Number.isFinite(curr)) continue;
+    if (curr < prev) reversalCount++;
+    else if (curr === prev) duplicateCount++;
+    else intervals.push(curr - prev);
+  }
+
+  if (reversalCount > 0) {
+    issues.push({
+      severity: reversalCount > relativeTimes.length * 0.1 ? "error" : "warning",
+      code: "time-reversal",
+      message: `時刻の逆転が${reversalCount}件あります。`,
+    });
+  }
+  if (duplicateCount > 0) {
+    issues.push({
+      severity: "warning",
+      code: "duplicate-time",
+      message: `重複した時刻が${duplicateCount}件あります。`,
+    });
+  }
+
+  // 有効な区間（前の行より時刻が進んでいる箇所）が存在しない場合、
+  // サンプリング間隔・継続時間が算出できず時刻軸として機能しない（重大な不備）。
+  if (intervals.length === 0 && relativeTimes.length > 1) {
+    issues.push({
+      severity: "error",
+      code: "no-valid-time-progression",
+      message:
+        "時刻列から有効なサンプリング間隔を算出できません（時刻がすべて同一または逆転しています）。時刻列の元データ（数値精度など）を確認してください。",
+    });
+  }
+
+  const medianInterval = median(intervals);
+  if (medianInterval !== null && intervals.length > 1) {
+    const deviations = intervals.map((v) => Math.abs(v - medianInterval));
+    const medianDeviation = median(deviations) ?? 0;
+    if (
+      medianInterval > 0 &&
+      medianDeviation / medianInterval > SAMPLE_INTERVAL_VARIATION_WARN_RATIO
+    ) {
+      issues.push({
+        severity: "warning",
+        code: "irregular-sampling",
+        message: "サンプリング間隔のばらつきが大きいため、推定サンプリング周波数の精度に注意してください。",
+      });
+    }
+  }
+
+  const angleColumns = CSV_COLUMN_DEFINITIONS.filter(
+    (def) => def.key !== "time" && mapping[def.key],
+  );
+  let outOfRangeCount = 0;
+  for (const def of angleColumns) {
+    const key = mapping[def.key]!;
+    for (const row of parsed.rows) {
+      const raw = row[key];
+      if (raw === undefined || raw === "") continue;
+      const value = Number.parseFloat(raw);
+      if (Number.isFinite(value) && Math.abs(value) > SUSPICIOUS_ANGLE_ABS_DEG) {
+        outOfRangeCount++;
+      }
+    }
+  }
+  if (outOfRangeCount > 0) {
+    issues.push({
+      severity: "warning",
+      code: "suspicious-angle-range",
+      message: `角度として想定範囲（±${SUSPICIOUS_ANGLE_ABS_DEG}度）を超える値が${outOfRangeCount}件あります。単位・列割当を確認してください。`,
+    });
+  }
+
+  const finiteRelativeTimes = relativeTimes.filter((v) => Number.isFinite(v));
+  const startTimeSec = finiteRelativeTimes.length > 0 ? finiteRelativeTimes[0] : null;
+  const endTimeSec =
+    finiteRelativeTimes.length > 0
+      ? finiteRelativeTimes[finiteRelativeTimes.length - 1]
+      : null;
+  const durationSec =
+    startTimeSec !== null && endTimeSec !== null ? endTimeSec - startTimeSec : null;
+
+  return {
+    issues,
+    hasBlockingError: issues.some((issue) => issue.severity === "error"),
+    rowCount: parsed.rows.length,
+    startTimeSec,
+    endTimeSec,
+    durationSec,
+    estimatedSampleRateHz: medianInterval && medianInterval > 0 ? 1 / medianInterval : null,
+    medianSampleIntervalSec: medianInterval,
+  };
+}

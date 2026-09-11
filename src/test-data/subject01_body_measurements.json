@@ -1,0 +1,10 @@
+{
+  "subjectId": "subject01",
+  "trialLabel": "comfortable_walk",
+  "sourceExcel": "既存Excel(計算済み 5.3)より転記。個人特定情報は含まない",
+  "thighLength": 52,
+  "shankLength": 49,
+  "pelvisWidth": 31,
+  "lengthUnit": "cm",
+  "note": "左右共通値。初期版データ構造は左右別値に拡張可能。"
+}
