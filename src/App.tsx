@@ -295,13 +295,13 @@ export function App() {
             <StrideResultsPanel state={strideResults} />
             <hr />
             <h3>歩幅波形</h3>
-            <StrideWaveformPanel state={strideWaveform} />
+            <StrideWaveformPanel state={strideWaveform} events={eventsState.events} />
             <hr />
             <h3>歩行周期・ケイデンス</h3>
             <GaitPhaseTimingPanel state={gaitPhaseTiming} />
             <hr />
             <h3>関節角度波形</h3>
-            <WaveformPanel state={waveforms} />
+            <WaveformPanel state={waveforms} events={eventsState.events} />
             <hr />
             <h3>ステップ動作結果</h3>
             <StepResultsPanel trialsState={stepTrialsState} resultsState={stepResults} />

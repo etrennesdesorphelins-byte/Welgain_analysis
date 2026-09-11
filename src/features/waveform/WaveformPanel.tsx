@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { GaitEvent } from "../../domain/events";
 import { WaveformChart } from "./WaveformChart";
 import { RawWaveformChart } from "./RawWaveformChart";
 import { SIDE_COLOR, SIDE_DASH, SIDE_LABEL } from "./chartConstants";
@@ -8,8 +9,13 @@ const SIDES = ["Rt", "Lt"] as const;
 
 const JOINT_LABEL: Record<WaveformJoint, string> = { hip: "股関節角度", knee: "膝関節角度" };
 
+interface WaveformPanelProps {
+  state: WaveformsState;
+  events: GaitEvent[];
+}
+
 /** 要件定義書12章：股・膝関節角度波形（個別・平均±SD、正規化／元時間波形の切替）。 */
-export function WaveformPanel({ state }: { state: WaveformsState }) {
+export function WaveformPanel({ state, events }: WaveformPanelProps) {
   const [joint, setJoint] = useState<WaveformJoint>("hip");
   const [mode, setMode] = useState<"normalized" | "raw">("normalized");
   const [showIndividualCycles, setShowIndividualCycles] = useState(true);
@@ -69,6 +75,8 @@ export function WaveformPanel({ state }: { state: WaveformsState }) {
         <RawWaveformChart
           title={JOINT_LABEL[joint]}
           csvTimes={state.csvTimes}
+          unit="°"
+          events={events}
           series={SIDES.map((side) => ({
             key: side,
             label: SIDE_LABEL[side],

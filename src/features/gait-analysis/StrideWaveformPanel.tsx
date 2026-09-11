@@ -1,9 +1,15 @@
+import type { GaitEvent } from "../../domain/events";
 import { RawWaveformChart } from "../waveform/RawWaveformChart";
 import { SIDE_COLOR, SIDE_DASH } from "../waveform/chartConstants";
 import type { StrideWaveformState } from "./useStrideWaveform";
 
+interface StrideWaveformPanelProps {
+  state: StrideWaveformState;
+  events: GaitEvent[];
+}
+
 /** 歩幅（formulas.md第6章）をCSV全体の時間軸で連続表示する。 */
-export function StrideWaveformPanel({ state }: { state: StrideWaveformState }) {
+export function StrideWaveformPanel({ state, events }: StrideWaveformPanelProps) {
   if (state.isConfigIncomplete) {
     return (
       <p className="waveform-panel__empty">
@@ -16,6 +22,8 @@ export function StrideWaveformPanel({ state }: { state: StrideWaveformState }) {
     <RawWaveformChart
       title="歩幅"
       csvTimes={state.csvTimes}
+      unit="cm"
+      events={events}
       series={[
         {
           key: "raw",
