@@ -80,4 +80,33 @@ describe("validateCsv", () => {
 
     expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(true);
   });
+
+  it("骨盤回旋角は絶対値ではなく基準フレームからの変化量で判定する（実CSVで発見した誤検知の再発防止）", () => {
+    // 絶対値は150〜165度と大きいが、先頭行からの変化量は小さい実データ相当のケース。
+    const rows = [
+      { time: "0", pelvis: "151.4" },
+      { time: "0.05", pelvis: "150.5" },
+      { time: "0.1", pelvis: "164.4" },
+      { time: "0.15", pelvis: "159.1" },
+    ];
+    const parsed = makeParsed(rows);
+    const mapping = { ...emptyMapping(), time: "time", lowerBackX: "pelvis" };
+    const result = validateCsv(parsed, mapping);
+
+    expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(false);
+  });
+
+  it("骨盤回旋角でも基準フレームから大きく変化した場合は警告する", () => {
+    const rows = [
+      { time: "0", pelvis: "0" },
+      { time: "0.05", pelvis: "5" },
+      { time: "0.1", pelvis: "-170" },
+      { time: "0.15", pelvis: "3" },
+    ];
+    const parsed = makeParsed(rows);
+    const mapping = { ...emptyMapping(), time: "time", lowerBackX: "pelvis" };
+    const result = validateCsv(parsed, mapping);
+
+    expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(true);
+  });
 });

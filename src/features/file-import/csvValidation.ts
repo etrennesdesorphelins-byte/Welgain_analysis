@@ -156,12 +156,27 @@ export function validateCsv(
   let outOfRangeCount = 0;
   for (const def of angleColumns) {
     const key = mapping[def.key]!;
-    for (const row of parsed.rows) {
+    const values = parsed.rows.map((row) => {
       const raw = row[key];
-      if (raw === undefined || raw === "") continue;
-      const value = Number.parseFloat(raw);
-      if (Number.isFinite(value) && Math.abs(value) > SUSPICIOUS_ANGLE_ABS_DEG) {
-        outOfRangeCount++;
+      return raw === undefined || raw === "" ? NaN : Number.parseFloat(raw);
+    });
+
+    if (def.key === "lowerBackX") {
+      // 骨盤回旋角はセンサーの絶対基準方向が試行ごとに異なり得るため、formulas.md第5章の
+      // 骨盤回旋補正と同様に「CSV先頭の有効値（基準フレーム）からの変化量」で判定する。
+      const baseline = values.find((v) => Number.isFinite(v));
+      if (baseline !== undefined) {
+        for (const value of values) {
+          if (Number.isFinite(value) && Math.abs(value - baseline) > SUSPICIOUS_ANGLE_ABS_DEG) {
+            outOfRangeCount++;
+          }
+        }
+      }
+    } else {
+      for (const value of values) {
+        if (Number.isFinite(value) && Math.abs(value) > SUSPICIOUS_ANGLE_ABS_DEG) {
+          outOfRangeCount++;
+        }
       }
     }
   }
