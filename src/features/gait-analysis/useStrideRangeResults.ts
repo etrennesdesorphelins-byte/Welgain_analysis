@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { detectStridePeaks, type StridePeak } from "../../domain/stridePeaks";
+import { detectStridePeaks, suggestMinPeakProminenceCm, type StridePeak } from "../../domain/stridePeaks";
 import {
   absoluteLeftRightDifference,
   computeSummaryStatistics,
@@ -24,6 +24,10 @@ export interface StrideRangeResultsState {
   isConfigIncomplete: boolean;
   /** 歩幅波形上で範囲が選択されているか。 */
   hasSelection: boolean;
+  /** 選択範囲の振れ幅から提案される、検出に用いる最小振幅（cm）の既定値。 */
+  suggestedMinPeakProminenceCm: number | null;
+  /** 実際に検出へ用いた最小振幅（cm）。 */
+  effectiveMinPeakProminenceCm: number | null;
   rightSummary: SummaryStatistics;
   leftSummary: SummaryStatistics;
   rightSummaryCorrected: SummaryStatistics;
@@ -40,6 +44,8 @@ function emptyState(isConfigIncomplete: boolean, hasSelection: boolean): StrideR
     results: [],
     isConfigIncomplete,
     hasSelection,
+    suggestedMinPeakProminenceCm: null,
+    effectiveMinPeakProminenceCm: null,
     rightSummary: emptyStats,
     leftSummary: emptyStats,
     rightSummaryCorrected: emptyStats,
@@ -54,15 +60,27 @@ function emptyState(isConfigIncomplete: boolean, hasSelection: boolean): StrideR
 /**
  * 要件定義書9章改訂：IC登録に頼らず、歩幅波形上で選択した範囲内の極大・極小点
  * （各ステップの歩幅）を自動検出し、左右別要約統計を求める。
+ * 検出感度（最小振幅）はminPeakProminenceCmOverrideで上書きできる。省略時（null）は
+ * 選択範囲の振れ幅から提案される既定値を用いる（実データでは、既定値のままだと
+ * 山谷の途中の副次的な揺れを誤検出することがあるため、UIで調整できるようにしている）。
  */
 export function useStrideRangeResults(
   strideWaveform: StrideWaveformState,
   selection: StrideRangeSelection | null,
   toVideoTime: (csvTimeSec: number) => number,
+  minPeakProminenceCmOverride: number | null,
 ): StrideRangeResultsState {
   return useMemo(() => {
     if (strideWaveform.isConfigIncomplete) return emptyState(true, selection !== null);
     if (!selection) return emptyState(false, false);
+
+    const suggested = suggestMinPeakProminenceCm(
+      strideWaveform.csvTimes,
+      strideWaveform.rawStride,
+      selection.startSec,
+      selection.endSec,
+    );
+    const effective = minPeakProminenceCmOverride ?? suggested;
 
     const peaks = detectStridePeaks(
       strideWaveform.csvTimes,
@@ -70,6 +88,7 @@ export function useStrideRangeResults(
       strideWaveform.pelvisCorrectedStride,
       selection.startSec,
       selection.endSec,
+      effective,
     );
     const results: StrideStepResult[] = peaks.map((p) => ({
       ...p,
@@ -92,6 +111,8 @@ export function useStrideRangeResults(
       results,
       isConfigIncomplete: false,
       hasSelection: true,
+      suggestedMinPeakProminenceCm: suggested,
+      effectiveMinPeakProminenceCm: effective,
       rightSummary,
       leftSummary,
       rightSummaryCorrected,
@@ -107,5 +128,5 @@ export function useStrideRangeResults(
         leftSummaryCorrected.mean,
       ),
     };
-  }, [strideWaveform, selection, toVideoTime]);
+  }, [strideWaveform, selection, toVideoTime, minPeakProminenceCmOverride]);
 }

@@ -74,9 +74,19 @@ export function App() {
   });
 
   const [strideRangeSelection, setStrideRangeSelection] = useState<StrideRangeSelection | null>(null);
+  const [minPeakProminenceCmOverride, setMinPeakProminenceCmOverride] = useState<number | null>(null);
   const gaitPhaseTiming = useGaitPhaseTiming(eventsState.events);
   const strideWaveform = useStrideWaveform(csv.parsed, csv.mapping, analysisSettings.settings);
-  const strideResults = useStrideRangeResults(strideWaveform, strideRangeSelection, sync.toVideoTime);
+  const strideResults = useStrideRangeResults(
+    strideWaveform,
+    strideRangeSelection,
+    sync.toVideoTime,
+    minPeakProminenceCmOverride,
+  );
+  const handleStrideRangeSelectionChange = useCallback((range: StrideRangeSelection | null) => {
+    setStrideRangeSelection(range);
+    setMinPeakProminenceCmOverride(null);
+  }, []);
   const stepResults = useStepResults(csv.parsed, csv.mapping, analysisSettings.settings, stepTrialsState.trials);
 
   const canRegisterEvents =
@@ -302,8 +312,10 @@ export function App() {
                       state={strideWaveform}
                       events={eventsState.events}
                       selection={strideRangeSelection}
-                      onSelectionChange={setStrideRangeSelection}
+                      onSelectionChange={handleStrideRangeSelectionChange}
                       strideResults={strideResults}
+                      minPeakProminenceCmOverride={minPeakProminenceCmOverride}
+                      onMinPeakProminenceCmOverrideChange={setMinPeakProminenceCmOverride}
                     />
                     <hr />
                     <h3>歩幅結果</h3>

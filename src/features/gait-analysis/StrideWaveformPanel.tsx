@@ -10,6 +10,8 @@ interface StrideWaveformPanelProps {
   selection: StrideRangeSelection | null;
   onSelectionChange: (range: StrideRangeSelection | null) => void;
   strideResults: StrideRangeResultsState;
+  minPeakProminenceCmOverride: number | null;
+  onMinPeakProminenceCmOverrideChange: (value: number | null) => void;
 }
 
 /** 歩幅（formulas.md第6章）をCSV全体の時間軸で連続表示し、範囲選択によりステップ歩幅を自動検出する。 */
@@ -19,6 +21,8 @@ export function StrideWaveformPanel({
   selection,
   onSelectionChange,
   strideResults,
+  minPeakProminenceCmOverride,
+  onMinPeakProminenceCmOverrideChange,
 }: StrideWaveformPanelProps) {
   if (state.isConfigIncomplete) {
     return (
@@ -32,6 +36,7 @@ export function StrideWaveformPanel({
     <div className="stride-waveform-panel">
       <p className="stride-waveform-panel__hint">
         波形をドラッグして範囲を選択すると、その範囲内の極大・極小点をステップ歩幅として自動検出します。
+        山や谷の途中に余分な検出点が出る場合は、下の検出感度を上げてください。
       </p>
       <div className="stride-waveform-panel__selection">
         {selection ? (
@@ -48,6 +53,28 @@ export function StrideWaveformPanel({
           <span>範囲が未選択です。</span>
         )}
       </div>
+      {selection && strideResults.effectiveMinPeakProminenceCm !== null && (
+        <div className="stride-waveform-panel__sensitivity">
+          <label>
+            検出感度（最小振幅, cm）
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={strideResults.effectiveMinPeakProminenceCm.toFixed(1)}
+              onChange={(e) => {
+                const value = Number.parseFloat(e.target.value);
+                onMinPeakProminenceCmOverrideChange(Number.isFinite(value) ? value : null);
+              }}
+            />
+          </label>
+          {minPeakProminenceCmOverride !== null && (
+            <button type="button" onClick={() => onMinPeakProminenceCmOverrideChange(null)}>
+              既定値に戻す（{strideResults.suggestedMinPeakProminenceCm?.toFixed(1)}）
+            </button>
+          )}
+        </div>
+      )}
       <RawWaveformChart
         title="歩幅"
         csvTimes={state.csvTimes}

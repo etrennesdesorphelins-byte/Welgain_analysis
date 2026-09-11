@@ -16,13 +16,36 @@ export interface StridePeak {
   sideRelativePelvisCorrectedStride: number;
 }
 
+/** suggestMinPeakProminenceCmが提案する振幅比率（選択範囲内の振れ幅に対する割合）。 */
+const DEFAULT_PROMINENCE_RATIO = 0.15;
+/** 振れ幅がほぼ0（平坦なデータ）の場合でも閾値が0にならないようにする下限（cm）。 */
+const MIN_PROMINENCE_FLOOR_CM = 1;
+
 /**
- * ノイズ由来の微小な振れをステップとして誤検出しないための最小振幅（cm）。
- * これより小さい山谷は無視し、直前に確定した極値からこの値以上動いて初めて
- * 反転を確定する（ジグザグ法）。歩幅の実測変動（数十cm）に対し、
- * センサー・計算誤差由来のジッタを除去する目的の値。
+ * 選択範囲内の歩幅波形の振れ幅（最大値－最小値）から、適切と思われる最小振幅閾値を提案する。
+ * 実データではノイズや副次的な揺れの大きさが被験者・区間ごとに異なるため、固定値ではなく
+ * 選択範囲自体の振れ幅に対する比率で決めることで、多くの場合に妥当な既定値となるようにする。
+ * 検出結果に余分な山谷が混じる場合は、この値をUIで引き上げて再検出できる。
  */
-const MIN_PEAK_PROMINENCE_CM = 3;
+export function suggestMinPeakProminenceCm(
+  csvTimes: number[],
+  rawStride: number[],
+  rangeStartSec: number,
+  rangeEndSec: number,
+): number {
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < csvTimes.length; i++) {
+    const t = csvTimes[i];
+    if (!Number.isFinite(t) || t < rangeStartSec || t > rangeEndSec) continue;
+    const v = rawStride[i];
+    if (!Number.isFinite(v)) continue;
+    min = Math.min(min, v);
+    max = Math.max(max, v);
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return MIN_PROMINENCE_FLOOR_CM;
+  return Math.max(MIN_PROMINENCE_FLOOR_CM, (max - min) * DEFAULT_PROMINENCE_RATIO);
+}
 
 /**
  * 要件定義書9章改訂：歩幅波形（骨盤補正なし歩幅＝左下肢距離－右下肢距離、formulas.md第6章）の
@@ -30,7 +53,9 @@ const MIN_PEAK_PROMINENCE_CM = 3;
  * 骨盤補正なし歩幅は左脚が前方なほど正、右脚が前方なほど負になるため、
  * 極大点（正のピーク）は左歩幅、極小点（負のピーク）は右歩幅に対応する
  * （formulas.md第7章のIC側基準変換 S_RtIC=-S, S_LtIC=S と整合）。
- * MIN_PEAK_PROMINENCE_CM未満の振れは反転として確定しない（ジグザグ法）。
+ * minPeakProminenceCm未満の振れは反転として確定しない（ジグザグ法）。
+ * 大きすぎる副次的な揺れが実データで混入する場合は、呼び出し側でこの値を引き上げること
+ * （suggestMinPeakProminenceCmは目安の既定値を提案するのみで、常に正しいとは限らない）。
  */
 export function detectStridePeaks(
   csvTimes: number[],
@@ -38,6 +63,7 @@ export function detectStridePeaks(
   pelvisCorrectedStride: number[],
   rangeStartSec: number,
   rangeEndSec: number,
+  minPeakProminenceCm: number,
 ): StridePeak[] {
   const indices: number[] = [];
   for (let i = 0; i < csvTimes.length; i++) {
@@ -74,11 +100,11 @@ export function detectStridePeaks(
     const val = rawStride[idx];
 
     if (direction === 0) {
-      if (val - pivotVal >= MIN_PEAK_PROMINENCE_CM) {
+      if (val - pivotVal >= minPeakProminenceCm) {
         direction = 1;
         extremeIdx = idx;
         extremeVal = val;
-      } else if (pivotVal - val >= MIN_PEAK_PROMINENCE_CM) {
+      } else if (pivotVal - val >= minPeakProminenceCm) {
         direction = -1;
         extremeIdx = idx;
         extremeVal = val;
@@ -90,7 +116,7 @@ export function detectStridePeaks(
       if (val >= extremeVal) {
         extremeVal = val;
         extremeIdx = idx;
-      } else if (extremeVal - val >= MIN_PEAK_PROMINENCE_CM) {
+      } else if (extremeVal - val >= minPeakProminenceCm) {
         peaks.push(buildPeak(extremeIdx, "Lt"));
         direction = -1;
         extremeIdx = idx;
@@ -100,7 +126,7 @@ export function detectStridePeaks(
       if (val <= extremeVal) {
         extremeVal = val;
         extremeIdx = idx;
-      } else if (val - extremeVal >= MIN_PEAK_PROMINENCE_CM) {
+      } else if (val - extremeVal >= minPeakProminenceCm) {
         peaks.push(buildPeak(extremeIdx, "Rt"));
         direction = 1;
         extremeIdx = idx;

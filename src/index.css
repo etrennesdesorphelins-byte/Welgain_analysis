@@ -285,6 +285,24 @@ body {
   margin-bottom: 0.4rem;
 }
 
+.stride-waveform-panel__sensitivity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.stride-waveform-panel__sensitivity label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.stride-waveform-panel__sensitivity input {
+  width: 5rem;
+}
+
 .waveform-chart svg {
   width: 100%;
   height: auto;
