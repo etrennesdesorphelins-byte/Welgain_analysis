@@ -16,7 +16,6 @@ export interface BuildSaveStateInput {
   bodyMeasurements: AnalysisSettings;
   events: GaitEvent[];
   stepTrials: StepTrial[];
-  gaitSpeedInput: { measuredDistanceM: number | null; startTimeSec: number | null; endTimeSec: number | null };
   isTimeEstimated: boolean;
   assumedSampleRateHz: number | null;
 }
@@ -54,7 +53,6 @@ export function buildSaveState(input: BuildSaveStateInput): SavedAnalysisState {
     bodyMeasurements: input.bodyMeasurements,
     events: input.events,
     stepTrials: input.stepTrials,
-    gaitSpeedInput: input.gaitSpeedInput,
     notes: {
       angleSignConvention:
         "大腿・下腿Euler.y: 正=前方傾斜、負=後方傾斜（docs/formulas.md第9章で動画照合により確定）",

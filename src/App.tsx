@@ -24,25 +24,17 @@ import { useStrideWaveform } from "./features/gait-analysis/useStrideWaveform";
 import { StrideWaveformPanel } from "./features/gait-analysis/StrideWaveformPanel";
 import { useGaitPhaseTiming } from "./features/gait-phase-timing/useGaitPhaseTiming";
 import { GaitPhaseTimingPanel } from "./features/gait-phase-timing/GaitPhaseTimingPanel";
-import { useWaveforms } from "./features/waveform/useWaveforms";
-import { WaveformPanel } from "./features/waveform/WaveformPanel";
 import { useStepTrials } from "./features/step-analysis/useStepTrials";
 import { useStepResults } from "./features/step-analysis/useStepResults";
 import { StepTrialForm } from "./features/step-analysis/StepTrialForm";
 import { StepResultsPanel } from "./features/step-analysis/StepResultsPanel";
-import { useGaitSpeed } from "./features/gait-speed/useGaitSpeed";
-import { GaitSpeedForm } from "./features/gait-speed/GaitSpeedForm";
 import { buildSaveState } from "./features/persistence/buildSaveState";
 import { SaveLoadPanel } from "./features/persistence/SaveLoadPanel";
 import { useUnsavedChangesWarning } from "./features/persistence/useUnsavedChangesWarning";
 import { ExportButtons } from "./features/export/ExportButtons";
 
-function dirtySnapshot(
-  events: unknown,
-  stepTrials: unknown,
-  gaitSpeedInput: unknown,
-): string {
-  return JSON.stringify({ events, stepTrials, gaitSpeedInput });
+function dirtySnapshot(events: unknown, stepTrials: unknown): string {
+  return JSON.stringify({ events, stepTrials });
 }
 
 export function App() {
@@ -69,7 +61,6 @@ export function App() {
 
   const eventsState = useEvents(videoDurationSec, csvDurationSec);
   const stepTrialsState = useStepTrials(videoDurationSec, csvDurationSec);
-  const gaitSpeed = useGaitSpeed();
 
   useVideoKeyboardShortcuts({
     onTogglePlay: playback.togglePlay,
@@ -86,7 +77,6 @@ export function App() {
     eventsState.events,
   );
   const gaitPhaseTiming = useGaitPhaseTiming(eventsState.events);
-  const waveforms = useWaveforms(csv.parsed, csv.mapping, eventsState.events);
   const strideWaveform = useStrideWaveform(csv.parsed, csv.mapping, analysisSettings.settings);
   const stepResults = useStepResults(csv.parsed, csv.mapping, analysisSettings.settings, stepTrialsState.trials);
 
@@ -97,11 +87,7 @@ export function App() {
   // ref.currentの更新は再レンダリングを起こさないため、beforeunloadリスナーが古いhasUnsavedChangesを
   // 参照し続けるバグになる。保存直後もクリーン判定が即座に反映されるよう、stateとして保持する。
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
-  const currentSnapshot = dirtySnapshot(eventsState.events, stepTrialsState.trials, {
-    measuredDistanceM: gaitSpeed.measuredDistanceM,
-    startTimeSec: gaitSpeed.startTimeSec,
-    endTimeSec: gaitSpeed.endTimeSec,
-  });
+  const currentSnapshot = dirtySnapshot(eventsState.events, stepTrialsState.trials);
   const hasUnsavedChanges =
     savedSnapshot !== null
       ? currentSnapshot !== savedSnapshot
@@ -147,11 +133,6 @@ export function App() {
         bodyMeasurements: analysisSettings.settings,
         events: eventsState.events,
         stepTrials: stepTrialsState.trials,
-        gaitSpeedInput: {
-          measuredDistanceM: gaitSpeed.measuredDistanceM,
-          startTimeSec: gaitSpeed.startTimeSec,
-          endTimeSec: gaitSpeed.endTimeSec,
-        },
         isTimeEstimated: csv.isTimeEstimated,
         assumedSampleRateHz: csv.assumedSampleRateHz,
       }),
@@ -168,9 +149,6 @@ export function App() {
       analysisSettings.settings,
       eventsState.events,
       stepTrialsState.trials,
-      gaitSpeed.measuredDistanceM,
-      gaitSpeed.startTimeSec,
-      gaitSpeed.endTimeSec,
     ],
   );
 
@@ -188,7 +166,6 @@ export function App() {
       analysisSettings.setLengthUnit(data.bodyMeasurements.lengthUnit);
       eventsState.replaceEvents(data.events);
       stepTrialsState.replaceTrials(data.stepTrials);
-      gaitSpeed.replaceInput(data.gaitSpeedInput);
       if (csv.parsed) {
         (Object.entries(data.csv.columnMapping) as [CsvColumnKey, string | null][]).forEach(
           ([key, header]) => {
@@ -204,9 +181,9 @@ export function App() {
           csv.setColumnMapping("time", data.csv.columnMapping.time);
         }
       }
-      setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials, data.gaitSpeedInput));
+      setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials));
     },
-    [analysisSettings, eventsState, stepTrialsState, gaitSpeed, csv],
+    [analysisSettings, eventsState, stepTrialsState, csv],
   );
 
   return (
@@ -250,10 +227,6 @@ export function App() {
               currentVideoTimeSec={playback.currentTimeSec}
               disabled={!canRegisterEvents}
             />
-          </div>
-          <div className="app-main__event-registration">
-            <h3>歩行速度（測定距離）</h3>
-            <GaitSpeedForm state={gaitSpeed} currentVideoTimeSec={playback.currentTimeSec} disabled={!canRegisterEvents} />
           </div>
         </section>
         <aside className="app-main__side">
@@ -300,9 +273,6 @@ export function App() {
             <h3>歩行周期・ケイデンス</h3>
             <GaitPhaseTimingPanel state={gaitPhaseTiming} />
             <hr />
-            <h3>関節角度波形</h3>
-            <WaveformPanel state={waveforms} events={eventsState.events} />
-            <hr />
             <h3>ステップ動作結果</h3>
             <StepResultsPanel trialsState={stepTrialsState} resultsState={stepResults} />
             <hr />
@@ -310,7 +280,6 @@ export function App() {
               events={eventsState.events}
               strideResults={strideResults}
               gaitPhaseTiming={gaitPhaseTiming}
-              waveforms={waveforms}
               stepResults={stepResults}
               trialName={trialName}
             />

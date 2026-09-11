@@ -43,12 +43,6 @@ const analysisSettingsSchema = z.object({
   lengthUnit: lengthUnitSchema,
 });
 
-const gaitSpeedInputSchema = z.object({
-  measuredDistanceM: z.number().nullable(),
-  startTimeSec: z.number().nullable(),
-  endTimeSec: z.number().nullable(),
-});
-
 /**
  * 要件定義書16章「出力に含める再現性情報」に対応する保存JSONのスキーマ。
  * 動画・CSV本体は含めない（技術提案書5.4）。
@@ -82,7 +76,6 @@ export const savedAnalysisStateSchema = z.object({
   bodyMeasurements: analysisSettingsSchema,
   events: z.array(gaitEventSchema),
   stepTrials: z.array(stepTrialSchema),
-  gaitSpeedInput: gaitSpeedInputSchema,
   notes: z.object({
     angleSignConvention: z.string(),
     interpolationMethod: z.string(),

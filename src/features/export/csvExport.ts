@@ -2,7 +2,6 @@ import type { GaitEvent } from "../../domain/events";
 import type { CycleSide, GaitPhaseTiming } from "../../domain/gaitCycles";
 import { phaseTimingPercent } from "../../domain/gaitCycles";
 import type { StrideResult, StrideResultsState } from "../gait-analysis/useStrideResults";
-import type { JointWaveformResult } from "../waveform/useWaveforms";
 import type { StepResult } from "../step-analysis/useStepResults";
 
 function escapeCsvField(value: string | number): string {
@@ -142,29 +141,6 @@ export function buildGaitPhaseTimingCsv(
     ]);
 
   return toCsvText(header, [...toRows("Rt", rightTimings), ...toRows("Lt", leftTimings)]);
-}
-
-/** 要件定義書15.2-4：101点に正規化した関節角度波形CSV。 */
-export function buildWaveformCsv(data: Record<CycleSide, JointWaveformResult>): string {
-  const pointCount = data.Rt.average.length || data.Lt.average.length;
-  const rows: (string | number)[][] = [];
-  for (let i = 0; i < pointCount; i++) {
-    const right = data.Rt.average[i];
-    const left = data.Lt.average[i];
-    rows.push([
-      i,
-      right?.mean ?? "NA",
-      right?.sd ?? "NA",
-      right?.validCount ?? 0,
-      left?.mean ?? "NA",
-      left?.sd ?? "NA",
-      left?.validCount ?? 0,
-    ]);
-  }
-  return toCsvText(
-    ["point_%", "right_mean", "right_sd", "right_valid_count", "left_mean", "left_sd", "left_valid_count"],
-    rows,
-  );
 }
 
 /** 要件定義書15.2-5：ステップ試行別結果CSV。 */

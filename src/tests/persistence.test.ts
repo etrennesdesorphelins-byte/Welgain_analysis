@@ -25,7 +25,6 @@ function makeValidState(): SavedAnalysisState {
     bodyMeasurements: { thighLength: 52, shankLength: 49, pelvisWidth: 31, lengthUnit: "cm" },
     events: [{ id: "e1", type: "Rt_IC", videoTimeSec: 0, estimatedFrame: 0, csvTimeSec: 0 }],
     stepTrials: [],
-    gaitSpeedInput: { measuredDistanceM: null, startTimeSec: null, endTimeSec: null },
     notes: { angleSignConvention: "x", interpolationMethod: "y", pelvisCorrectionNote: "z" },
   };
 }

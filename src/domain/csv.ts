@@ -5,11 +5,7 @@ export type CsvColumnKey =
   | "leftThighY"
   | "rightShankY"
   | "leftShankY"
-  | "lowerBackX"
-  | "rightHipAngle"
-  | "leftHipAngle"
-  | "rightKneeAngle"
-  | "leftKneeAngle";
+  | "lowerBackX";
 
 export interface CsvColumnDefinition {
   key: CsvColumnKey;
@@ -54,30 +50,6 @@ export const CSV_COLUMN_DEFINITIONS: CsvColumnDefinition[] = [
     key: "lowerBackX",
     label: "骨盤回旋角",
     knownAliases: ["LowerBack.Single.Euler.x"],
-    required: false,
-  },
-  {
-    key: "rightHipAngle",
-    label: "右股関節角度",
-    knownAliases: ["RightHip.Angle"],
-    required: false,
-  },
-  {
-    key: "leftHipAngle",
-    label: "左股関節角度",
-    knownAliases: ["LeftHip.Angle"],
-    required: false,
-  },
-  {
-    key: "rightKneeAngle",
-    label: "右膝関節角度",
-    knownAliases: ["RightKnee.Angle"],
-    required: false,
-  },
-  {
-    key: "leftKneeAngle",
-    label: "左膝関節角度",
-    knownAliases: ["LeftKnee.Angle"],
     required: false,
   },
 ];

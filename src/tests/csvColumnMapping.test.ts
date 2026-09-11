@@ -14,10 +14,6 @@ describe("autoMapColumns", () => {
       "LeftLowerLeg.Single.Euler.y",
       "RightThigh.Single.Euler.y",
       "LeftThigh.Single.Euler.y",
-      "RightKnee.Angle",
-      "LeftKnee.Angle",
-      "RightHip.Angle",
-      "LeftHip.Angle",
     ];
 
     const mapping = autoMapColumns(headers);
@@ -28,10 +24,6 @@ describe("autoMapColumns", () => {
     expect(mapping.rightShankY).toBe("RightLowerLeg.Single.Euler.y");
     expect(mapping.leftShankY).toBe("LeftLowerLeg.Single.Euler.y");
     expect(mapping.lowerBackX).toBe("LowerBack.Single.Euler.x");
-    expect(mapping.rightKneeAngle).toBe("RightKnee.Angle");
-    expect(mapping.leftKneeAngle).toBe("LeftKnee.Angle");
-    expect(mapping.rightHipAngle).toBe("RightHip.Angle");
-    expect(mapping.leftHipAngle).toBe("LeftHip.Angle");
   });
 
   it("前後空白・大文字小文字の違いを吸収する", () => {
