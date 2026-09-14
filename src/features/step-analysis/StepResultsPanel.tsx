@@ -28,45 +28,53 @@ export function StepResultsPanel({ trialsState, resultsState }: StepResultsPanel
           骨盤補正あり歩幅は算出していません（骨盤回旋角が未割当、または骨盤回旋補正を使用しない設定のためです）。
         </p>
       )}
-      <table className="event-list-table">
-        <thead>
-          <tr>
-            <th>側</th>
-            <th>動作開始</th>
-            <th>ステップ側IC</th>
-            <th>動作終了</th>
-            <th>ステップ時間</th>
-            <th>動作完了時間</th>
-            <th>ステップ側基準歩幅</th>
-            <th>絶対歩幅</th>
-            <th>骨盤補正あり</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {trialsState.trials.map((trial) => {
-            const r = resultByTrialId.get(trial.id);
-            return (
-              <tr key={trial.id}>
-                <td>{SIDE_LABEL[trial.side]}</td>
-                <td>{trial.movementStartVideoTimeSec.toFixed(2)}</td>
-                <td>{trial.icVideoTimeSec.toFixed(2)}</td>
-                <td>{trial.movementEndVideoTimeSec !== null ? trial.movementEndVideoTimeSec.toFixed(2) : "—"}</td>
-                <td>{r ? fmt(r.stepTimeSec) : "—"}秒</td>
-                <td>{r ? fmt(r.movementCompletionTimeSec) : "—"}</td>
-                <td>{r ? fmt(r.stepRelativeStride) : "算出不可"}</td>
-                <td>{r ? fmt(r.absoluteStrideValue) : "—"}</td>
-                <td>{r ? fmt(r.stepRelativePelvisCorrectedStride) : "—"}</td>
-                <td>
-                  <button type="button" onClick={() => trialsState.deleteTrial(trial.id)}>
-                    削除
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="table-scroll">
+        <table className="event-list-table">
+          <thead>
+            <tr>
+              <th>側</th>
+              <th>動作開始</th>
+              <th>ステップ幅最大値</th>
+              <th>動作終了</th>
+              <th>足部離床</th>
+              <th>足部IC</th>
+              <th>ステップ時間</th>
+              <th>動作完了時間</th>
+              <th>遊脚時間</th>
+              <th>ステップ側基準歩幅</th>
+              <th>絶対歩幅</th>
+              <th>骨盤補正あり</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {trialsState.trials.map((trial) => {
+              const r = resultByTrialId.get(trial.id);
+              return (
+                <tr key={trial.id}>
+                  <td>{SIDE_LABEL[trial.side]}</td>
+                  <td>{trial.movementStartVideoTimeSec.toFixed(2)}</td>
+                  <td>{trial.icVideoTimeSec.toFixed(2)}</td>
+                  <td>{trial.movementEndVideoTimeSec !== null ? trial.movementEndVideoTimeSec.toFixed(2) : "—"}</td>
+                  <td>{trial.footOffVideoTimeSec !== null ? trial.footOffVideoTimeSec.toFixed(2) : "—"}</td>
+                  <td>{trial.footIcVideoTimeSec !== null ? trial.footIcVideoTimeSec.toFixed(2) : "—"}</td>
+                  <td>{r ? fmt(r.stepTimeSec) : "—"}秒</td>
+                  <td>{r ? fmt(r.movementCompletionTimeSec) : "—"}</td>
+                  <td>{r ? fmt(r.swingTimeSec) : "—"}</td>
+                  <td>{r ? fmt(r.stepRelativeStride) : "算出不可"}</td>
+                  <td>{r ? fmt(r.absoluteStrideValue) : "—"}</td>
+                  <td>{r ? fmt(r.stepRelativePelvisCorrectedStride) : "—"}</td>
+                  <td>
+                    <button type="button" onClick={() => trialsState.deleteTrial(trial.id)}>
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {resultsState.missing.length > 0 && (
         <ul className="validation-issue-list">
@@ -83,6 +91,10 @@ export function StepResultsPanel({ trialsState, resultsState }: StepResultsPanel
         ステップ時間：件数{resultsState.stepTimeSummary.count} 最大{fmt(resultsState.stepTimeSummary.max)} 最小
         {fmt(resultsState.stepTimeSummary.min)} 平均{fmt(resultsState.stepTimeSummary.mean)} SD
         {fmt(resultsState.stepTimeSummary.sd)}
+        <br />
+        遊脚時間：件数{resultsState.swingTimeSummary.count} 最大{fmt(resultsState.swingTimeSummary.max)} 最小
+        {fmt(resultsState.swingTimeSummary.min)} 平均{fmt(resultsState.swingTimeSummary.mean)} SD
+        {fmt(resultsState.swingTimeSummary.sd)}
         <br />
         ステップ側基準歩幅：件数{resultsState.strideSummary.count} 最大{fmt(resultsState.strideSummary.max)} 最小
         {fmt(resultsState.strideSummary.min)} 平均{fmt(resultsState.strideSummary.mean)} SD

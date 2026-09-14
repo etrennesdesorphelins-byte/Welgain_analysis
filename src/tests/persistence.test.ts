@@ -63,4 +63,24 @@ describe("parseSavedState", () => {
     expect(result.success).toBe(true);
     expect(result.data?.stepAnalysisSettings).toEqual({ ignorePelvisCorrection: false });
   });
+
+  it("足部離床・足部ICが無い旧形式のステップ試行も既定値nullで読み込める（後方互換）", () => {
+    const state = makeValidState();
+    state.stepTrials = [
+      {
+        id: "s1",
+        side: "Rt",
+        movementStartVideoTimeSec: 1,
+        movementStartCsvTimeSec: 1,
+        icVideoTimeSec: 1.8,
+        icCsvTimeSec: 1.8,
+        movementEndVideoTimeSec: null,
+        movementEndCsvTimeSec: null,
+      } as unknown as SavedAnalysisState["stepTrials"][number],
+    ];
+    const result = parseSavedState(JSON.parse(JSON.stringify(state)));
+    expect(result.success).toBe(true);
+    expect(result.data?.stepTrials[0].footOffVideoTimeSec).toBeNull();
+    expect(result.data?.stepTrials[0].footIcCsvTimeSec).toBeNull();
+  });
 });

@@ -32,6 +32,10 @@ const stepTrialSchema = z.object({
   icCsvTimeSec: z.number(),
   movementEndVideoTimeSec: z.number().nullable(),
   movementEndCsvTimeSec: z.number().nullable(),
+  footOffVideoTimeSec: z.number().nullable().default(null),
+  footOffCsvTimeSec: z.number().nullable().default(null),
+  footIcVideoTimeSec: z.number().nullable().default(null),
+  footIcCsvTimeSec: z.number().nullable().default(null),
 });
 
 const lengthUnitSchema = z.enum(["cm", "m"]);

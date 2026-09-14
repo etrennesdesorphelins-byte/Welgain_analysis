@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { toRelativeSeconds, type ColumnMapping, type ParsedCsv } from "../../domain/csv";
 import { toCentimeters, type AnalysisSettings } from "../../domain/analysisSettings";
 import type { StepTrial } from "../../domain/stepTrial";
-import { movementCompletionTimeSec, stepTimeSec } from "../../domain/stepTrial";
+import { movementCompletionTimeSec, stepTimeSec, swingTimeSec } from "../../domain/stepTrial";
 import { interpolateAtTime } from "../../domain/interpolation";
 import {
   absoluteStride,
@@ -19,6 +19,8 @@ export interface StepResult {
   side: "Rt" | "Lt";
   stepTimeSec: number;
   movementCompletionTimeSec: number | null;
+  /** 遊脚時間 = 足部IC − 足部離床（両方登録済みの場合のみ）。 */
+  swingTimeSec: number | null;
   signedStride: number;
   stepRelativeStride: number;
   absoluteStrideValue: number;
@@ -40,6 +42,7 @@ export interface StepResultsState {
   hasPelvisCorrection: boolean;
   stepTimeSummary: SummaryStatistics;
   strideSummary: SummaryStatistics;
+  swingTimeSummary: SummaryStatistics;
 }
 
 function emptyState(isConfigIncomplete: boolean): StepResultsState {
@@ -51,6 +54,7 @@ function emptyState(isConfigIncomplete: boolean): StepResultsState {
     hasPelvisCorrection: false,
     stepTimeSummary: empty,
     strideSummary: empty,
+    swingTimeSummary: empty,
   };
 }
 
@@ -126,6 +130,7 @@ export function useStepResults(
         side: trial.side,
         stepTimeSec: stepTimeSec(trial),
         movementCompletionTimeSec: movementCompletionTimeSec(trial),
+        swingTimeSec: swingTimeSec(trial),
         signedStride,
         stepRelativeStride: toIcRelativeStride(signedStride, trial.side),
         absoluteStrideValue: absoluteStride(signedStride),
@@ -141,6 +146,9 @@ export function useStepResults(
       hasPelvisCorrection,
       stepTimeSummary: computeSummaryStatistics(results.map((r) => r.stepTimeSec)),
       strideSummary: computeSummaryStatistics(results.map((r) => r.stepRelativeStride)),
+      swingTimeSummary: computeSummaryStatistics(
+        results.map((r) => r.swingTimeSec).filter((v): v is number => v !== null),
+      ),
     };
   }, [parsed, mapping, settings, trials, ignorePelvisCorrection]);
 }

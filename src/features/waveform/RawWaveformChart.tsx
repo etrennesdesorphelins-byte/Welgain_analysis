@@ -51,6 +51,8 @@ interface RawWaveformChartProps {
   onSelectionChange?: (range: RawWaveformRange | null) => void;
   /** 波形上に表示する、自動検出したピーク（歩幅のステップ等）。 */
   peakMarkers?: RawWaveformPeakMarker[];
+  /** 動画の現在再生位置（CSV時刻換算）。指定すると波形上に再生位置バーを表示する。 */
+  playheadCsvTimeSec?: number | null;
 }
 
 const WIDTH = 720;
@@ -71,6 +73,7 @@ export function RawWaveformChart({
   selection,
   onSelectionChange,
   peakMarkers,
+  playheadCsvTimeSec,
 }: RawWaveformChartProps) {
   const [dragStartSec, setDragStartSec] = useState<number | null>(null);
   const maxTime = csvTimes.length > 0 ? csvTimes[csvTimes.length - 1] : 1;
@@ -146,6 +149,12 @@ export function RawWaveformChart({
   const visiblePeaks = (peakMarkers ?? []).filter(
     (p) => Number.isFinite(p.value) && p.csvTimeSec >= 0 && p.csvTimeSec <= maxTime,
   );
+  const showPlayhead =
+    playheadCsvTimeSec !== null &&
+    playheadCsvTimeSec !== undefined &&
+    Number.isFinite(playheadCsvTimeSec) &&
+    playheadCsvTimeSec >= 0 &&
+    playheadCsvTimeSec <= maxTime;
 
   return (
     <div className="waveform-chart">
@@ -260,6 +269,23 @@ export function RawWaveformChart({
           />
         ))}
 
+        {showPlayhead && (
+          <g>
+            <line
+              x1={xForTime(playheadCsvTimeSec!)}
+              y1={MARGIN.top}
+              x2={xForTime(playheadCsvTimeSec!)}
+              y2={MARGIN.top + PLOT_HEIGHT}
+              stroke="#1f2937"
+              strokeWidth={1.5}
+            />
+            <polygon
+              points={`${xForTime(playheadCsvTimeSec!) - 4},${MARGIN.top - 1} ${xForTime(playheadCsvTimeSec!) + 4},${MARGIN.top - 1} ${xForTime(playheadCsvTimeSec!)},${MARGIN.top + 5}`}
+              fill="#1f2937"
+            />
+          </g>
+        )}
+
         {onSelectionChange && (
           <rect
             x={MARGIN.left}
@@ -303,6 +329,14 @@ export function RawWaveformChart({
               <circle cx={6} cy={6} r={4} fill="#6b6a63" stroke="#fcfcfb" strokeWidth={1} />
             </svg>
             検出ステップ
+          </span>
+        )}
+        {showPlayhead && (
+          <span className="waveform-chart__legend-item">
+            <svg width={12} height={12} aria-hidden="true">
+              <line x1={6} y1={0} x2={6} y2={12} stroke="#1f2937" strokeWidth={1.5} />
+            </svg>
+            動画再生位置
           </span>
         )}
       </div>

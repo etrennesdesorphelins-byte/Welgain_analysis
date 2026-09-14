@@ -3,6 +3,7 @@ import {
   isValidStepTrialDraft,
   movementCompletionTimeSec,
   stepTimeSec,
+  swingTimeSec,
   type StepTrial,
 } from "../domain/stepTrial";
 
@@ -16,12 +17,16 @@ function makeTrial(overrides: Partial<StepTrial> = {}): StepTrial {
     icCsvTimeSec: 1.8,
     movementEndVideoTimeSec: null,
     movementEndCsvTimeSec: null,
+    footOffVideoTimeSec: null,
+    footOffCsvTimeSec: null,
+    footIcVideoTimeSec: null,
+    footIcCsvTimeSec: null,
     ...overrides,
   };
 }
 
 describe("stepTimeSec", () => {
-  it("ステップ側ICから動作開始を引いた時間を返す", () => {
+  it("ステップ幅最大値から動作開始を引いた時間を返す", () => {
     expect(stepTimeSec(makeTrial())).toBeCloseTo(0.8, 6);
   });
 });
@@ -37,8 +42,21 @@ describe("movementCompletionTimeSec", () => {
   });
 });
 
+describe("swingTimeSec", () => {
+  it("足部離床・足部ICのいずれかが未登録の場合はnull", () => {
+    expect(swingTimeSec(makeTrial())).toBeNull();
+    expect(swingTimeSec(makeTrial({ footOffVideoTimeSec: 1.2 }))).toBeNull();
+    expect(swingTimeSec(makeTrial({ footIcVideoTimeSec: 1.6 }))).toBeNull();
+  });
+
+  it("足部離床・足部ICが両方登録されている場合はその差を返す", () => {
+    const trial = makeTrial({ footOffVideoTimeSec: 1.2, footIcVideoTimeSec: 1.6 });
+    expect(swingTimeSec(trial)).toBeCloseTo(0.4, 6);
+  });
+});
+
 describe("isValidStepTrialDraft", () => {
-  it("側・動作開始・ステップ側ICが揃っていれば有効", () => {
+  it("側・動作開始・ステップ幅最大値が揃っていれば有効", () => {
     expect(
       isValidStepTrialDraft({ side: "Rt", movementStartVideoTimeSec: 1, icVideoTimeSec: 2 }),
     ).toBe(true);

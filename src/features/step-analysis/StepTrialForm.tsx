@@ -11,7 +11,10 @@ interface StepTrialFormProps {
   disabled: boolean;
 }
 
-/** 要件定義書14.1：ステップ側・動作開始・ステップ側IC・動作終了（任意）の登録フォーム。 */
+/**
+ * 要件定義書14.1：ステップ側・動作開始・ステップ幅最大値・動作終了（任意）の登録フォーム。
+ * 遊脚時間算出用に、足部離床・足部IC（いずれも任意）も動画から直接記録できる。
+ */
 export function StepTrialForm({ state, currentVideoTimeSec, disabled }: StepTrialFormProps) {
   return (
     <div className="step-trial-form">
@@ -34,7 +37,7 @@ export function StepTrialForm({ state, currentVideoTimeSec, disabled }: StepTria
       </div>
       <div className="step-trial-form__row">
         <button type="button" disabled={disabled} onClick={() => state.captureIc(currentVideoTimeSec)}>
-          ステップ側ICを記録
+          ステップ幅最大値を記録
         </button>
         <span>{fmt(state.draft.icVideoTimeSec)}</span>
       </div>
@@ -50,11 +53,33 @@ export function StepTrialForm({ state, currentVideoTimeSec, disabled }: StepTria
         )}
       </div>
       <div className="step-trial-form__row">
+        <button type="button" disabled={disabled} onClick={() => state.captureFootOff(currentVideoTimeSec)}>
+          足部離床を記録（任意・遊脚時間算出用）
+        </button>
+        <span>{fmt(state.draft.footOffVideoTimeSec)}</span>
+        {state.draft.footOffVideoTimeSec !== null && (
+          <button type="button" onClick={state.clearFootOff}>
+            取消
+          </button>
+        )}
+      </div>
+      <div className="step-trial-form__row">
+        <button type="button" disabled={disabled} onClick={() => state.captureFootIc(currentVideoTimeSec)}>
+          足部ICを記録（任意・遊脚時間算出用）
+        </button>
+        <span>{fmt(state.draft.footIcVideoTimeSec)}</span>
+        {state.draft.footIcVideoTimeSec !== null && (
+          <button type="button" onClick={state.clearFootIc}>
+            取消
+          </button>
+        )}
+      </div>
+      <div className="step-trial-form__row">
         <button type="button" disabled={disabled || !state.canCommitDraft} onClick={state.commitDraft}>
           この試行を追加
         </button>
         {!state.canCommitDraft && (
-          <span className="step-trial-form__hint">動作開始とステップ側ICの記録が必要です。</span>
+          <span className="step-trial-form__hint">動作開始とステップ幅最大値の記録が必要です。</span>
         )}
       </div>
     </div>

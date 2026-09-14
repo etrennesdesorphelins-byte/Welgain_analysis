@@ -14,6 +14,7 @@ interface StepWaveformPanelProps {
   trials: StepTrial[];
   draft: StepTrialDraft;
   toCsvTime: (videoTimeSec: number) => number;
+  playheadCsvTimeSec: number | null;
   baselineSelection: StepBaselineSelection | null;
   onBaselineSelectionChange: (range: StepBaselineSelection | null) => void;
   onAutoDetect: () => void;
@@ -21,16 +22,18 @@ interface StepWaveformPanelProps {
 }
 
 /**
- * ステップ動作開始・ステップ側ICを視覚的に確認するための歩幅波形表示。
+ * ステップ動作開始・ステップ幅最大値を視覚的に確認するための歩幅波形表示。
  * 静止立位区間をドラッグで選択し、自動検出（平均値±2SD超えを動作開始、
- * その後の極値をステップ側ICとする）した結果を、登録済み試行・現在の
- * 入力中の試行とあわせてマーカー表示する。
+ * その後の区間内の真の最大値をステップ幅最大値とする）した結果を、登録済み
+ * 試行・現在の入力中の試行とあわせてマーカー表示する。動画の再生位置も
+ * バーで表示し、動画と波形の対応が視覚的にわかるようにする。
  */
 export function StepWaveformPanel({
   state,
   trials,
   draft,
   toCsvTime,
+  playheadCsvTimeSec,
   baselineSelection,
   onBaselineSelectionChange,
   onAutoDetect,
@@ -90,7 +93,7 @@ export function StepWaveformPanel({
   return (
     <div className="stride-waveform-panel">
       <p className="stride-waveform-panel__hint">
-        波形をドラッグして静止立位区間を選択し、「自動検出」で動作開始・ステップ側ICを推定できます。
+        波形をドラッグして静止立位区間を選択し、「自動検出」で動作開始・ステップ幅最大値を推定できます。
         自動検出後も、動画側の登録ボタンで現在の再生位置に上書きして修正できます。
       </p>
       <div className="stride-waveform-panel__selection">
@@ -107,7 +110,7 @@ export function StepWaveformPanel({
           <span>静止立位区間が未選択です。</span>
         )}
         <button type="button" disabled={!baselineSelection} onClick={onAutoDetect}>
-          動作開始・ステップ側ICを自動検出
+          動作開始・ステップ幅最大値を自動検出
         </button>
       </div>
       {autoDetectMessage && <p className="step-trial-form__hint">{autoDetectMessage}</p>}
@@ -118,10 +121,11 @@ export function StepWaveformPanel({
         markers={markers}
         markerLegend={[
           { shape: "square", label: "動作開始" },
-          { shape: "circle", label: "ステップ側IC" },
+          { shape: "circle", label: "ステップ幅最大値" },
         ]}
         selection={baselineSelection}
         onSelectionChange={onBaselineSelectionChange}
+        playheadCsvTimeSec={playheadCsvTimeSec}
         series={series}
       />
     </div>

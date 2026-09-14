@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBaselineStats, detectMovementStart, detectStepSideIc } from "../domain/stepDetection";
+import { computeBaselineStats, detectMovementStart, detectStepWidthMax } from "../domain/stepDetection";
 
 describe("computeBaselineStats", () => {
   it("選択範囲内の値から平均・標本標準偏差を算出する", () => {
@@ -46,28 +46,36 @@ describe("detectMovementStart", () => {
   });
 });
 
-describe("detectStepSideIc", () => {
+describe("detectStepWidthMax", () => {
   const zeroBaseline = { mean: 0, sd: 1, count: 10 };
 
-  it("プラス方向の変化でも、基準値から最も離れた時刻を返す", () => {
+  it("プラス方向の変化でも、基準値から最も離れた時刻（区間内の真の最大値）を返す", () => {
     const csvTimes = [0, 1, 2, 3, 4, 5];
     const values = [0, 20, 50, 80, 60, 40];
 
-    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
+    expect(detectStepWidthMax(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
   it("マイナス方向の変化でも、符号を問わず基準値から最も離れた時刻を返す", () => {
     const csvTimes = [0, 1, 2, 3, 4, 5];
     const values = [0, -20, -50, -80, -60, -40];
 
-    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
+    expect(detectStepWidthMax(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
   it("基準値が0でない場合も、基準値からの変化量で判定する", () => {
     const csvTimes = [0, 1, 2, 3, 4];
     const values = [10, 10, 40, 10, 10];
 
-    expect(detectStepSideIc(csvTimes, values, { mean: 10, sd: 1, count: 5 }, 0)).toBe(2);
+    expect(detectStepWidthMax(csvTimes, values, { mean: 10, sd: 1, count: 5 }, 0)).toBe(2);
+  });
+
+  it("途中に小さなノイズ由来の落ち込みがあっても、そこで打ち切らず区間全体から真の最大値を探す", () => {
+    // idx1(50)からidx2(45)へのノイズ的な落ち込みで早期に確定せず、真の最大値idx3(90)を返す。
+    const csvTimes = [0, 1, 2, 3, 4];
+    const values = [0, 50, 45, 90, 60];
+
+    expect(detectStepWidthMax(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
   it("fromCsvTimeSec以降のみを探索する", () => {
@@ -75,18 +83,18 @@ describe("detectStepSideIc", () => {
     const values = [100, 0, 10, 30, 20, 5];
 
     // t=0の100は探索範囲外。t=1以降で基準値から最も離れているのはt=3(30)。
-    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 1)).toBe(3);
+    expect(detectStepWidthMax(csvTimes, values, zeroBaseline, 1)).toBe(3);
   });
 
-  it("反転が起きないまま終端まで単調な場合は最後の値を返す", () => {
+  it("単調増加のまま終端に達した場合は最後の値（区間内の最大値）を返す", () => {
     const csvTimes = [0, 1, 2, 3];
     const values = [0, 10, 20, 30];
 
-    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
+    expect(detectStepWidthMax(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
   it("有効な値が範囲内に無い場合はnullを返す", () => {
-    expect(detectStepSideIc([0, 1], [NaN, NaN], zeroBaseline, 0)).toBeNull();
-    expect(detectStepSideIc([0, 1], [1, 2], zeroBaseline, 10)).toBeNull();
+    expect(detectStepWidthMax([0, 1], [NaN, NaN], zeroBaseline, 0)).toBeNull();
+    expect(detectStepWidthMax([0, 1], [1, 2], zeroBaseline, 10)).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import type { StrideRangeSelection, StrideRangeResultsState } from "./useStrideR
 interface StrideWaveformPanelProps {
   state: StrideWaveformState;
   events: GaitEvent[];
+  playheadCsvTimeSec: number | null;
   selection: StrideRangeSelection | null;
   onSelectionChange: (range: StrideRangeSelection | null) => void;
   strideResults: StrideRangeResultsState;
@@ -18,6 +19,7 @@ interface StrideWaveformPanelProps {
 export function StrideWaveformPanel({
   state,
   events,
+  playheadCsvTimeSec,
   selection,
   onSelectionChange,
   strideResults,
@@ -91,6 +93,7 @@ export function StrideWaveformPanel({
         ]}
         selection={selection}
         onSelectionChange={onSelectionChange}
+        playheadCsvTimeSec={playheadCsvTimeSec}
         peakMarkers={strideResults.results.map((r) => ({
           csvTimeSec: r.csvTimeSec,
           value: r.signedStride,

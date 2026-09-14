@@ -30,7 +30,7 @@ import { useStepWaveform } from "./features/step-analysis/useStepWaveform";
 import { StepTrialForm } from "./features/step-analysis/StepTrialForm";
 import { StepResultsPanel } from "./features/step-analysis/StepResultsPanel";
 import { StepWaveformPanel, type StepBaselineSelection } from "./features/step-analysis/StepWaveformPanel";
-import { computeBaselineStats, detectMovementStart, detectStepSideIc } from "./domain/stepDetection";
+import { computeBaselineStats, detectMovementStart, detectStepWidthMax } from "./domain/stepDetection";
 import { buildSaveState } from "./features/persistence/buildSaveState";
 import { SaveLoadPanel } from "./features/persistence/SaveLoadPanel";
 import { useUnsavedChangesWarning } from "./features/persistence/useUnsavedChangesWarning";
@@ -141,18 +141,19 @@ export function App() {
       setStepAutoDetectMessage("動作開始を検出できませんでした。動画側のボタンで手動で記録してください。");
       return;
     }
-    const icCsvSec = detectStepSideIc(stepWaveform.csvTimes, stepWaveform.rawStride, baseline, startCsvSec);
-    if (icCsvSec === null) {
-      setStepAutoDetectMessage("ステップ側ICを検出できませんでした。動画側のボタンで手動で記録してください。");
+    const maxCsvSec = detectStepWidthMax(stepWaveform.csvTimes, stepWaveform.rawStride, baseline, startCsvSec);
+    if (maxCsvSec === null) {
+      setStepAutoDetectMessage("ステップ幅最大値を検出できませんでした。動画側のボタンで手動で記録してください。");
       return;
     }
     stepTrialsState.captureMovementStart(sync.toVideoTime(startCsvSec));
-    stepTrialsState.captureIc(sync.toVideoTime(icCsvSec));
-    setStepAutoDetectMessage("動作開始・ステップ側ICを自動検出しました。誤りがあれば動画側のボタンで修正してください。");
+    stepTrialsState.captureIc(sync.toVideoTime(maxCsvSec));
+    setStepAutoDetectMessage("動作開始・ステップ幅最大値を自動検出しました。誤りがあれば動画側のボタンで修正してください。");
   }, [stepBaselineSelection, stepWaveform, stepTrialsState, sync]);
 
   const canRegisterEvents =
     Boolean(video.objectUrl) && Boolean(csv.parsed) && !csv.validation?.hasBlockingError;
+  const playheadCsvTimeSec = csv.parsed ? sync.toCsvTime(playback.currentTimeSec) : null;
 
   // 要件定義書15.3：未保存の解析状態を検出する(最後の保存／読込時点からの差分)。
   // ref.currentの更新は再レンダリングを起こさないため、beforeunloadリスナーが古いhasUnsavedChangesを
@@ -378,6 +379,7 @@ export function App() {
                     <StrideWaveformPanel
                       state={strideWaveform}
                       events={eventsState.events}
+                      playheadCsvTimeSec={playheadCsvTimeSec}
                       selection={strideRangeSelection}
                       onSelectionChange={handleStrideRangeSelectionChange}
                       strideResults={strideResults}
@@ -421,6 +423,7 @@ export function App() {
                       trials={stepTrialsState.trials}
                       draft={stepTrialsState.draft}
                       toCsvTime={sync.toCsvTime}
+                      playheadCsvTimeSec={playheadCsvTimeSec}
                       baselineSelection={stepBaselineSelection}
                       onBaselineSelectionChange={handleStepBaselineSelectionChange}
                       onAutoDetect={handleAutoDetectStep}

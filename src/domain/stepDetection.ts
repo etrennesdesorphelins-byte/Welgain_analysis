@@ -53,13 +53,16 @@ export function detectMovementStart(
 }
 
 /**
- * 動作開始以降で、静止立位区間の平均値から最も離れた時刻（歩幅の最大変化点）を、
- * ステップ側ICとして検出する。プラス方向（左脚前方）・マイナス方向（右脚前方）の
- * どちらへの変化かは問わず、基準値からの絶対的な変化量が最大の点を採用する
+ * 動作開始以降（fromCsvTimeSec〜データ末尾）で、静止立位区間の平均値から最も離れた
+ * 時刻（歩幅の最大変化点＝ステップ幅最大値）を検出する。プラス方向（左脚前方）・
+ * マイナス方向（右脚前方）のどちらへの変化かは問わず、基準値からの絶対的な変化量が
+ * 最大となる点（区間内の真の最大値）を採用する
  * （formulas.md第6〜7章の符号規約：左脚前方で正、右脚前方で負）。
+ * 実データのノイズによる小さな上下動で途中の点を誤って採用しないよう、
+ * 最初に減少した点で打ち切らず、区間全体を走査して真の最大値を探す。
  * 見つからない場合はnull。
  */
-export function detectStepSideIc(
+export function detectStepWidthMax(
   csvTimes: number[],
   values: number[],
   baseline: BaselineStats,
@@ -75,19 +78,9 @@ export function detectStepSideIc(
     if (!Number.isFinite(v)) continue;
 
     const deviation = Math.abs(v - baseline.mean);
-
-    if (extremeIdx === -1) {
-      extremeIdx = i;
+    if (deviation > extremeDeviation) {
       extremeDeviation = deviation;
-      continue;
-    }
-
-    if (deviation >= extremeDeviation) {
       extremeIdx = i;
-      extremeDeviation = deviation;
-    } else {
-      // 基準値からの変化量が縮み始めた＝直前の極値がステップ側IC。
-      return csvTimes[extremeIdx];
     }
   }
 
