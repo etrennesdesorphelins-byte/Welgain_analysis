@@ -47,37 +47,46 @@ describe("detectMovementStart", () => {
 });
 
 describe("detectStepSideIc", () => {
-  it("Lt側は動作開始以降で最初に極大となった時刻を返す", () => {
+  const zeroBaseline = { mean: 0, sd: 1, count: 10 };
+
+  it("プラス方向の変化でも、基準値から最も離れた時刻を返す", () => {
     const csvTimes = [0, 1, 2, 3, 4, 5];
     const values = [0, 20, 50, 80, 60, 40];
 
-    expect(detectStepSideIc(csvTimes, values, "Lt", 0)).toBe(3);
+    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
-  it("Rt側は動作開始以降で最初に極小となった時刻を返す", () => {
+  it("マイナス方向の変化でも、符号を問わず基準値から最も離れた時刻を返す", () => {
     const csvTimes = [0, 1, 2, 3, 4, 5];
     const values = [0, -20, -50, -80, -60, -40];
 
-    expect(detectStepSideIc(csvTimes, values, "Rt", 0)).toBe(3);
+    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
+  });
+
+  it("基準値が0でない場合も、基準値からの変化量で判定する", () => {
+    const csvTimes = [0, 1, 2, 3, 4];
+    const values = [10, 10, 40, 10, 10];
+
+    expect(detectStepSideIc(csvTimes, values, { mean: 10, sd: 1, count: 5 }, 0)).toBe(2);
   });
 
   it("fromCsvTimeSec以降のみを探索する", () => {
     const csvTimes = [0, 1, 2, 3, 4, 5];
     const values = [100, 0, 10, 30, 20, 5];
 
-    // t=0の100は探索範囲外。t=1以降でLt側の極大はt=3(30)。
-    expect(detectStepSideIc(csvTimes, values, "Lt", 1)).toBe(3);
+    // t=0の100は探索範囲外。t=1以降で基準値から最も離れているのはt=3(30)。
+    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 1)).toBe(3);
   });
 
   it("反転が起きないまま終端まで単調な場合は最後の値を返す", () => {
     const csvTimes = [0, 1, 2, 3];
     const values = [0, 10, 20, 30];
 
-    expect(detectStepSideIc(csvTimes, values, "Lt", 0)).toBe(3);
+    expect(detectStepSideIc(csvTimes, values, zeroBaseline, 0)).toBe(3);
   });
 
   it("有効な値が範囲内に無い場合はnullを返す", () => {
-    expect(detectStepSideIc([0, 1], [NaN, NaN], "Lt", 0)).toBeNull();
-    expect(detectStepSideIc([0, 1], [1, 2], "Lt", 10)).toBeNull();
+    expect(detectStepSideIc([0, 1], [NaN, NaN], zeroBaseline, 0)).toBeNull();
+    expect(detectStepSideIc([0, 1], [1, 2], zeroBaseline, 10)).toBeNull();
   });
 });

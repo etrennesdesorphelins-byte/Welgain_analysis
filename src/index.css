@@ -16,7 +16,7 @@ body {
 .app-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .app-header {
@@ -159,10 +159,20 @@ body {
   grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
   gap: 1rem;
   padding: 1rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
+/*
+ * 動画・身体計測値・解析結果の表示位置が離れすぎて見比べにくいという指摘への対応：
+ * 動画側と結果側をそれぞれ独立してスクロールできるようにし、
+ * 片方をスクロールしてももう片方（特に動画）が画面外へ流れないようにする。
+ */
 .app-main__video {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .app-main__side {
@@ -170,6 +180,9 @@ body {
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .app-main__side-top,

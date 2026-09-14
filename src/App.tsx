@@ -141,12 +141,7 @@ export function App() {
       setStepAutoDetectMessage("動作開始を検出できませんでした。動画側のボタンで手動で記録してください。");
       return;
     }
-    const icCsvSec = detectStepSideIc(
-      stepWaveform.csvTimes,
-      stepWaveform.rawStride,
-      stepTrialsState.draft.side,
-      startCsvSec,
-    );
+    const icCsvSec = detectStepSideIc(stepWaveform.csvTimes, stepWaveform.rawStride, baseline, startCsvSec);
     if (icCsvSec === null) {
       setStepAutoDetectMessage("ステップ側ICを検出できませんでした。動画側のボタンで手動で記録してください。");
       return;

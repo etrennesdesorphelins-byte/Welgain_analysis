@@ -1,5 +1,3 @@
-import type { StepSide } from "./stepTrial";
-
 export interface BaselineStats {
   mean: number;
   sd: number;
@@ -55,19 +53,20 @@ export function detectMovementStart(
 }
 
 /**
- * 動作開始以降で、ステップ側（Rt=より小さい方向、Lt=より大きい方向）へ最初に
- * 極大・極小に達した時刻を、ステップ側ICとして検出する（歩幅の最大変化点）。
- * formulas.md第6〜7章の符号規約（左脚前方で正、右脚前方で負）に基づく。
+ * 動作開始以降で、静止立位区間の平均値から最も離れた時刻（歩幅の最大変化点）を、
+ * ステップ側ICとして検出する。プラス方向（左脚前方）・マイナス方向（右脚前方）の
+ * どちらへの変化かは問わず、基準値からの絶対的な変化量が最大の点を採用する
+ * （formulas.md第6〜7章の符号規約：左脚前方で正、右脚前方で負）。
  * 見つからない場合はnull。
  */
 export function detectStepSideIc(
   csvTimes: number[],
   values: number[],
-  side: StepSide,
+  baseline: BaselineStats,
   fromCsvTimeSec: number,
 ): number | null {
   let extremeIdx = -1;
-  let extremeVal = NaN;
+  let extremeDeviation = -Infinity;
 
   for (let i = 0; i < csvTimes.length; i++) {
     const t = csvTimes[i];
@@ -75,18 +74,19 @@ export function detectStepSideIc(
     const v = values[i];
     if (!Number.isFinite(v)) continue;
 
+    const deviation = Math.abs(v - baseline.mean);
+
     if (extremeIdx === -1) {
       extremeIdx = i;
-      extremeVal = v;
+      extremeDeviation = deviation;
       continue;
     }
 
-    const isFurther = side === "Lt" ? v > extremeVal : v < extremeVal;
-    if (isFurther) {
+    if (deviation >= extremeDeviation) {
       extremeIdx = i;
-      extremeVal = v;
+      extremeDeviation = deviation;
     } else {
-      // 反対方向へ戻り始めた＝直前の極値がステップ側IC。
+      // 基準値からの変化量が縮み始めた＝直前の極値がステップ側IC。
       return csvTimes[extremeIdx];
     }
   }
