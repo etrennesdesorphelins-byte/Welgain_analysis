@@ -23,6 +23,11 @@ export function StepResultsPanel({ trialsState, resultsState }: StepResultsPanel
 
   return (
     <div>
+      {!resultsState.hasPelvisCorrection && (
+        <p className="step-results-panel__note">
+          骨盤補正あり歩幅は算出していません（骨盤回旋角が未割当、または骨盤回旋補正を使用しない設定のためです）。
+        </p>
+      )}
       <table className="event-list-table">
         <thead>
           <tr>

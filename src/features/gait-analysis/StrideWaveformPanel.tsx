@@ -79,7 +79,16 @@ export function StrideWaveformPanel({
         title="歩幅"
         csvTimes={state.csvTimes}
         unit="cm"
-        events={events}
+        markers={events.map((e) => ({
+          id: e.id,
+          csvTimeSec: e.csvTimeSec,
+          side: e.type.startsWith("Rt") ? "Rt" : "Lt",
+          shape: e.type.endsWith("Off") ? "square" : "circle",
+        }))}
+        markerLegend={[
+          { shape: "circle", label: "IC（接地）" },
+          { shape: "square", label: "Off（離地）" },
+        ]}
         selection={selection}
         onSelectionChange={onSelectionChange}
         peakMarkers={strideResults.results.map((r) => ({

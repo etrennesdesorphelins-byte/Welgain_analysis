@@ -69,7 +69,7 @@ describe("validateCsv", () => {
     expect(result.durationSec).toBe(0);
   });
 
-  it("想定範囲外の角度値を検出して警告する", () => {
+  it("想定範囲外の角度値を検出して警告し、原因の列（columnKey）を特定する", () => {
     const rows = [
       { time: "0", angle: "10" },
       { time: "1", angle: "999" },
@@ -78,7 +78,23 @@ describe("validateCsv", () => {
     const mapping = { ...emptyMapping(), time: "time", rightThighY: "angle" };
     const result = validateCsv(parsed, mapping);
 
-    expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(true);
+    const issue = result.issues.find((i) => i.code === "suspicious-angle-range");
+    expect(issue).toBeDefined();
+    expect(issue?.columnKey).toBe("rightThighY");
+    expect(issue?.message).toContain("右大腿角度");
+  });
+
+  it("複数列が同時に範囲外の場合、列ごとに個別の警告を出す", () => {
+    const rows = [
+      { time: "0", thigh: "10", pelvis: "0" },
+      { time: "1", thigh: "999", pelvis: "999" },
+    ];
+    const parsed = makeParsed(rows);
+    const mapping = { ...emptyMapping(), time: "time", rightThighY: "thigh", lowerBackX: "pelvis" };
+    const result = validateCsv(parsed, mapping);
+
+    const rangeIssues = result.issues.filter((i) => i.code === "suspicious-angle-range");
+    expect(rangeIssues.map((i) => i.columnKey).sort()).toEqual(["lowerBackX", "rightThighY"]);
   });
 
   it("骨盤回旋角は絶対値ではなく基準フレームからの変化量で判定する（実CSVで発見した誤検知の再発防止）", () => {
@@ -107,6 +123,9 @@ describe("validateCsv", () => {
     const mapping = { ...emptyMapping(), time: "time", lowerBackX: "pelvis" };
     const result = validateCsv(parsed, mapping);
 
-    expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(true);
+    const issue = result.issues.find((i) => i.code === "suspicious-angle-range");
+    expect(issue).toBeDefined();
+    expect(issue?.columnKey).toBe("lowerBackX");
+    expect(issue?.message).toContain("骨盤回旋角");
   });
 });

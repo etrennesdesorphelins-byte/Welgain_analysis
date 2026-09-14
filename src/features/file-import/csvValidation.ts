@@ -153,7 +153,9 @@ export function validateCsv(
   const angleColumns = CSV_COLUMN_DEFINITIONS.filter(
     (def) => def.key !== "time" && mapping[def.key],
   );
-  let outOfRangeCount = 0;
+  // 列ごとに超過件数を集計する。骨盤回旋角（lowerBackX）はジンバルロック等で
+  // 単独で範囲外になりやすいため、どのパラメーターが原因かを特定できるよう、
+  // 1件の集計にまとめず列単位で警告を出す。
   for (const def of angleColumns) {
     const key = mapping[def.key]!;
     const values = parsed.rows.map((row) => {
@@ -161,6 +163,7 @@ export function validateCsv(
       return raw === undefined || raw === "" ? NaN : Number.parseFloat(raw);
     });
 
+    let outOfRangeCount = 0;
     if (def.key === "lowerBackX") {
       // 骨盤回旋角はセンサーの絶対基準方向が試行ごとに異なり得るため、formulas.md第5章の
       // 骨盤回旋補正と同様に「CSV先頭の有効値（基準フレーム）からの変化量」で判定する。
@@ -179,13 +182,15 @@ export function validateCsv(
         }
       }
     }
-  }
-  if (outOfRangeCount > 0) {
-    issues.push({
-      severity: "warning",
-      code: "suspicious-angle-range",
-      message: `角度として想定範囲（±${SUSPICIOUS_ANGLE_ABS_DEG}度）を超える値が${outOfRangeCount}件あります。単位・列割当を確認してください。`,
-    });
+
+    if (outOfRangeCount > 0) {
+      issues.push({
+        severity: "warning",
+        code: "suspicious-angle-range",
+        columnKey: def.key,
+        message: `${def.label}（列:${key}）が想定範囲（±${SUSPICIOUS_ANGLE_ABS_DEG}度）を超える値が${outOfRangeCount}件あります。ジンバルロック等の可能性があります。単位・列割当を確認してください。`,
+      });
+    }
   }
 
   const finiteRelativeTimes = relativeTimes.filter((v) => Number.isFinite(v));

@@ -1,5 +1,4 @@
 import { useMemo, useState, type PointerEvent } from "react";
-import type { GaitEvent } from "../../domain/events";
 import type { CycleSide } from "../../domain/gaitCycles";
 import { SIDE_COLOR } from "./chartConstants";
 
@@ -22,14 +21,30 @@ export interface RawWaveformPeakMarker {
   side: CycleSide;
 }
 
+export type RawWaveformMarkerShape = "circle" | "square";
+
+export interface RawWaveformMarker {
+  id: string;
+  csvTimeSec: number;
+  side: CycleSide;
+  shape: RawWaveformMarkerShape;
+}
+
+export interface RawWaveformMarkerLegendItem {
+  shape: RawWaveformMarkerShape;
+  label: string;
+}
+
 interface RawWaveformChartProps {
   title: string;
   csvTimes: number[];
   series: RawWaveformSeries[];
   /** Y軸の単位表示（例："cm"、"°"）。省略時は数値のみ表示する。 */
   unit?: string;
-  /** タグ付けした歩行イベントを時間軸上に表示する（省略時は非表示）。 */
-  events?: GaitEvent[];
+  /** タグ付けしたイベント（歩行イベント・ステップ動作イベント等）を時間軸上に表示する（省略時は非表示）。 */
+  markers?: RawWaveformMarker[];
+  /** markers の凡例（形状と意味の対応）。markersを指定する場合はあわせて指定する。 */
+  markerLegend?: RawWaveformMarkerLegendItem[];
   /** ドラッグで選択した時間範囲（範囲選択機能を使わない場合は省略）。 */
   selection?: RawWaveformRange | null;
   /** 指定するとドラッグによる範囲選択を有効化する。 */
@@ -51,7 +66,8 @@ export function RawWaveformChart({
   csvTimes,
   series,
   unit,
-  events,
+  markers,
+  markerLegend,
   selection,
   onSelectionChange,
   peakMarkers,
@@ -126,7 +142,7 @@ export function RawWaveformChart({
   }
 
   const yTicks = [minY, (minY + maxY) / 2, maxY];
-  const visibleEvents = (events ?? []).filter((e) => e.csvTimeSec >= 0 && e.csvTimeSec <= maxTime);
+  const visibleMarkers = (markers ?? []).filter((m) => m.csvTimeSec >= 0 && m.csvTimeSec <= maxTime);
   const visiblePeaks = (peakMarkers ?? []).filter(
     (p) => Number.isFinite(p.value) && p.csvTimeSec >= 0 && p.csvTimeSec <= maxTime,
   );
@@ -180,17 +196,16 @@ export function RawWaveformChart({
           />
         )}
 
-        {visibleEvents.map((event) => {
-          const side = event.type.startsWith("Rt") ? "Rt" : "Lt";
-          const x = xForTime(event.csvTimeSec);
+        {visibleMarkers.map((marker) => {
+          const x = xForTime(marker.csvTimeSec);
           return (
             <line
-              key={event.id}
+              key={marker.id}
               x1={x}
               y1={MARGIN.top}
               x2={x}
               y2={MARGIN.top + PLOT_HEIGHT}
-              stroke={SIDE_COLOR[side]}
+              stroke={SIDE_COLOR[marker.side]}
               strokeWidth={1}
               strokeOpacity={0.4}
             />
@@ -210,15 +225,13 @@ export function RawWaveformChart({
           />
         ))}
 
-        {visibleEvents.map((event) => {
-          const side = event.type.startsWith("Rt") ? "Rt" : "Lt";
-          const isOff = event.type.endsWith("Off");
-          const x = xForTime(event.csvTimeSec);
+        {visibleMarkers.map((marker) => {
+          const x = xForTime(marker.csvTimeSec);
           const cy = MARGIN.top - EVENT_MARKER_SIZE / 2 - 1;
-          const color = SIDE_COLOR[side];
+          const color = SIDE_COLOR[marker.side];
           return (
-            <g key={event.id}>
-              {isOff ? (
+            <g key={marker.id}>
+              {marker.shape === "square" ? (
                 <rect
                   x={x - EVENT_MARKER_SIZE / 2}
                   y={cy - EVENT_MARKER_SIZE / 2}
@@ -271,22 +284,19 @@ export function RawWaveformChart({
             {s.label}
           </span>
         ))}
-        {visibleEvents.length > 0 && (
-          <>
-            <span className="waveform-chart__legend-item">
+        {visibleMarkers.length > 0 &&
+          (markerLegend ?? []).map((item) => (
+            <span key={item.label} className="waveform-chart__legend-item">
               <svg width={12} height={12} aria-hidden="true">
-                <circle cx={6} cy={6} r={3.5} fill="#6b6a63" />
+                {item.shape === "square" ? (
+                  <rect x={2.5} y={2.5} width={7} height={7} fill="#6b6a63" />
+                ) : (
+                  <circle cx={6} cy={6} r={3.5} fill="#6b6a63" />
+                )}
               </svg>
-              IC（接地）
+              {item.label}
             </span>
-            <span className="waveform-chart__legend-item">
-              <svg width={12} height={12} aria-hidden="true">
-                <rect x={2.5} y={2.5} width={7} height={7} fill="#6b6a63" />
-              </svg>
-              Off（離地）
-            </span>
-          </>
-        )}
+          ))}
         {visiblePeaks.length > 0 && (
           <span className="waveform-chart__legend-item">
             <svg width={12} height={12} aria-hidden="true">

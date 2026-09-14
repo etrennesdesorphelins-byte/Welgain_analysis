@@ -159,8 +159,8 @@ export function buildStepTrialsCsv(results: StepResult[]): string {
       r.signedStride,
       r.stepRelativeStride,
       r.absoluteStrideValue,
-      r.pelvisCorrectedStride,
-      r.stepRelativePelvisCorrectedStride,
+      r.pelvisCorrectedStride ?? "NA",
+      r.stepRelativePelvisCorrectedStride ?? "NA",
     ]),
   );
 }

@@ -76,6 +76,12 @@ export const savedAnalysisStateSchema = z.object({
   bodyMeasurements: analysisSettingsSchema,
   events: z.array(gaitEventSchema),
   stepTrials: z.array(stepTrialSchema),
+  stepAnalysisSettings: z
+    .object({
+      /** 骨盤回旋角のジンバルロック等により骨盤補正を用いない設定にしたか（要件定義書14章）。 */
+      ignorePelvisCorrection: z.boolean().default(false),
+    })
+    .default({ ignorePelvisCorrection: false }),
   notes: z.object({
     angleSignConvention: z.string(),
     interpolationMethod: z.string(),

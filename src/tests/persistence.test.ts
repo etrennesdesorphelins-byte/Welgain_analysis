@@ -25,6 +25,7 @@ function makeValidState(): SavedAnalysisState {
     bodyMeasurements: { thighLength: 52, shankLength: 49, pelvisWidth: 31, lengthUnit: "cm" },
     events: [{ id: "e1", type: "Rt_IC", videoTimeSec: 0, estimatedFrame: 0, csvTimeSec: 0 }],
     stepTrials: [],
+    stepAnalysisSettings: { ignorePelvisCorrection: false },
     notes: { angleSignConvention: "x", interpolationMethod: "y", pelvisCorrectionNote: "z" },
   };
 }
@@ -53,5 +54,13 @@ describe("parseSavedState", () => {
   it("完全に無効な値（null等）はエラーを返す", () => {
     expect(parseSavedState(null).success).toBe(false);
     expect(parseSavedState("not an object").success).toBe(false);
+  });
+
+  it("stepAnalysisSettingsが無い旧形式の保存データも既定値で読み込める（後方互換）", () => {
+    const state = makeValidState() as Record<string, unknown>;
+    delete state.stepAnalysisSettings;
+    const result = parseSavedState(JSON.parse(JSON.stringify(state)));
+    expect(result.success).toBe(true);
+    expect(result.data?.stepAnalysisSettings).toEqual({ ignorePelvisCorrection: false });
   });
 });

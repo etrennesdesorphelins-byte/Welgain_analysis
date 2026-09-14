@@ -81,6 +81,8 @@ export interface ValidationIssue {
   severity: ValidationSeverity;
   code: string;
   message: string;
+  /** この警告の原因となったCSV列（列単位の警告の場合のみ）。 */
+  columnKey?: CsvColumnKey;
 }
 
 export interface CsvValidationResult {

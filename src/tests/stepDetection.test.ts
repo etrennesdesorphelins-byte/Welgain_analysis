@@ -1,0 +1,83 @@
+import { describe, expect, it } from "vitest";
+import { computeBaselineStats, detectMovementStart, detectStepSideIc } from "../domain/stepDetection";
+
+describe("computeBaselineStats", () => {
+  it("選択範囲内の値から平均・標本標準偏差を算出する", () => {
+    const csvTimes = [0, 1, 2, 3, 4];
+    const values = [10, 12, 8, 100, 100];
+
+    const stats = computeBaselineStats(csvTimes, values, 0, 2);
+
+    expect(stats).not.toBeNull();
+    expect(stats!.count).toBe(3);
+    expect(stats!.mean).toBeCloseTo(10, 6);
+    expect(stats!.sd).toBeCloseTo(2, 6);
+  });
+
+  it("有効な値が1件以下の場合はnullを返す", () => {
+    expect(computeBaselineStats([0, 1], [10, NaN], 0, 1)).toBeNull();
+    expect(computeBaselineStats([0, 1], [10, 12], 5, 6)).toBeNull();
+  });
+});
+
+describe("detectMovementStart", () => {
+  it("平均値±2SDを最初に超えた時刻を検出する", () => {
+    const csvTimes = [0, 1, 2, 3, 4, 5, 6];
+    const values = [10, 10, 10, 10, 50, 51, 52];
+    const baseline = { mean: 10.1, sd: 0.3, count: 4 };
+
+    expect(detectMovementStart(csvTimes, values, baseline, 0)).toBe(4);
+  });
+
+  it("searchFromSec以前の変化は無視する", () => {
+    const csvTimes = [0, 1, 2, 3, 4, 5];
+    const values = [10, 50, 10, 10, 60, 10];
+    const baseline = { mean: 10, sd: 1, count: 3 };
+
+    expect(detectMovementStart(csvTimes, values, baseline, 3)).toBe(4);
+  });
+
+  it("閾値を超える変化が見つからない場合はnullを返す", () => {
+    const csvTimes = [0, 1, 2, 3];
+    const values = [10, 10.5, 9.5, 10.2];
+    const baseline = { mean: 10, sd: 1, count: 4 };
+
+    expect(detectMovementStart(csvTimes, values, baseline, 0)).toBeNull();
+  });
+});
+
+describe("detectStepSideIc", () => {
+  it("Lt側は動作開始以降で最初に極大となった時刻を返す", () => {
+    const csvTimes = [0, 1, 2, 3, 4, 5];
+    const values = [0, 20, 50, 80, 60, 40];
+
+    expect(detectStepSideIc(csvTimes, values, "Lt", 0)).toBe(3);
+  });
+
+  it("Rt側は動作開始以降で最初に極小となった時刻を返す", () => {
+    const csvTimes = [0, 1, 2, 3, 4, 5];
+    const values = [0, -20, -50, -80, -60, -40];
+
+    expect(detectStepSideIc(csvTimes, values, "Rt", 0)).toBe(3);
+  });
+
+  it("fromCsvTimeSec以降のみを探索する", () => {
+    const csvTimes = [0, 1, 2, 3, 4, 5];
+    const values = [100, 0, 10, 30, 20, 5];
+
+    // t=0の100は探索範囲外。t=1以降でLt側の極大はt=3(30)。
+    expect(detectStepSideIc(csvTimes, values, "Lt", 1)).toBe(3);
+  });
+
+  it("反転が起きないまま終端まで単調な場合は最後の値を返す", () => {
+    const csvTimes = [0, 1, 2, 3];
+    const values = [0, 10, 20, 30];
+
+    expect(detectStepSideIc(csvTimes, values, "Lt", 0)).toBe(3);
+  });
+
+  it("有効な値が範囲内に無い場合はnullを返す", () => {
+    expect(detectStepSideIc([0, 1], [NaN, NaN], "Lt", 0)).toBeNull();
+    expect(detectStepSideIc([0, 1], [1, 2], "Lt", 10)).toBeNull();
+  });
+});

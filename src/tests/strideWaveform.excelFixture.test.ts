@@ -57,7 +57,7 @@ describe("computeContinuousStride vs 既存Excel基準値", () => {
     expect(diffRaw, `stride_no_pelvis_AQ row=${rowIndex}`).toBeLessThan(ABS_TOLERANCE);
 
     const diffCorrected = Math.abs(
-      pelvisCorrectedStride[i] - Number(expectedRow.stride_with_pelvis_AR),
+      pelvisCorrectedStride![i] - Number(expectedRow.stride_with_pelvis_AR),
     );
     expect(diffCorrected, `stride_with_pelvis_AR row=${rowIndex}`).toBeLessThan(ABS_TOLERANCE);
   });

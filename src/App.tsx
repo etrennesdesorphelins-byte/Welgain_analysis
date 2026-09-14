@@ -26,16 +26,19 @@ import { useGaitPhaseTiming } from "./features/gait-phase-timing/useGaitPhaseTim
 import { GaitPhaseTimingPanel } from "./features/gait-phase-timing/GaitPhaseTimingPanel";
 import { useStepTrials } from "./features/step-analysis/useStepTrials";
 import { useStepResults } from "./features/step-analysis/useStepResults";
+import { useStepWaveform } from "./features/step-analysis/useStepWaveform";
 import { StepTrialForm } from "./features/step-analysis/StepTrialForm";
 import { StepResultsPanel } from "./features/step-analysis/StepResultsPanel";
+import { StepWaveformPanel, type StepBaselineSelection } from "./features/step-analysis/StepWaveformPanel";
+import { computeBaselineStats, detectMovementStart, detectStepSideIc } from "./domain/stepDetection";
 import { buildSaveState } from "./features/persistence/buildSaveState";
 import { SaveLoadPanel } from "./features/persistence/SaveLoadPanel";
 import { useUnsavedChangesWarning } from "./features/persistence/useUnsavedChangesWarning";
 import { ExportButtons } from "./features/export/ExportButtons";
 import { ModeSelectPage, type AnalysisMode } from "./features/app-shell/ModeSelectPage";
 
-function dirtySnapshot(events: unknown, stepTrials: unknown): string {
-  return JSON.stringify({ events, stepTrials });
+function dirtySnapshot(events: unknown, stepTrials: unknown, stepAnalysisSettings: unknown): string {
+  return JSON.stringify({ events, stepTrials, stepAnalysisSettings });
 }
 
 export function App() {
@@ -87,7 +90,71 @@ export function App() {
     setStrideRangeSelection(range);
     setMinPeakProminenceCmOverride(null);
   }, []);
-  const stepResults = useStepResults(csv.parsed, csv.mapping, analysisSettings.settings, stepTrialsState.trials);
+
+  const [ignorePelvisCorrectionForSteps, setIgnorePelvisCorrectionForSteps] = useState(false);
+  const [stepBaselineSelection, setStepBaselineSelection] = useState<StepBaselineSelection | null>(null);
+  const [stepAutoDetectMessage, setStepAutoDetectMessage] = useState<string | null>(null);
+  const stepWaveform = useStepWaveform(
+    csv.parsed,
+    csv.mapping,
+    analysisSettings.settings,
+    ignorePelvisCorrectionForSteps,
+  );
+  const stepResults = useStepResults(
+    csv.parsed,
+    csv.mapping,
+    analysisSettings.settings,
+    stepTrialsState.trials,
+    ignorePelvisCorrectionForSteps,
+  );
+  const pelvisGimbalLockWarning =
+    csv.validation?.issues.find((i) => i.code === "suspicious-angle-range" && i.columnKey === "lowerBackX")
+      ?.message ?? null;
+
+  const handleStepBaselineSelectionChange = useCallback((range: StepBaselineSelection | null) => {
+    setStepBaselineSelection(range);
+    setStepAutoDetectMessage(null);
+  }, []);
+
+  const handleAutoDetectStep = useCallback(() => {
+    if (!stepBaselineSelection) {
+      setStepAutoDetectMessage("先に静止立位区間を選択してください。");
+      return;
+    }
+    const baseline = computeBaselineStats(
+      stepWaveform.csvTimes,
+      stepWaveform.rawStride,
+      stepBaselineSelection.startSec,
+      stepBaselineSelection.endSec,
+    );
+    if (!baseline) {
+      setStepAutoDetectMessage("選択範囲内に有効なデータがありません。範囲を見直してください。");
+      return;
+    }
+    const startCsvSec = detectMovementStart(
+      stepWaveform.csvTimes,
+      stepWaveform.rawStride,
+      baseline,
+      stepBaselineSelection.endSec,
+    );
+    if (startCsvSec === null) {
+      setStepAutoDetectMessage("動作開始を検出できませんでした。動画側のボタンで手動で記録してください。");
+      return;
+    }
+    const icCsvSec = detectStepSideIc(
+      stepWaveform.csvTimes,
+      stepWaveform.rawStride,
+      stepTrialsState.draft.side,
+      startCsvSec,
+    );
+    if (icCsvSec === null) {
+      setStepAutoDetectMessage("ステップ側ICを検出できませんでした。動画側のボタンで手動で記録してください。");
+      return;
+    }
+    stepTrialsState.captureMovementStart(sync.toVideoTime(startCsvSec));
+    stepTrialsState.captureIc(sync.toVideoTime(icCsvSec));
+    setStepAutoDetectMessage("動作開始・ステップ側ICを自動検出しました。誤りがあれば動画側のボタンで修正してください。");
+  }, [stepBaselineSelection, stepWaveform, stepTrialsState, sync]);
 
   const canRegisterEvents =
     Boolean(video.objectUrl) && Boolean(csv.parsed) && !csv.validation?.hasBlockingError;
@@ -96,7 +163,9 @@ export function App() {
   // ref.currentの更新は再レンダリングを起こさないため、beforeunloadリスナーが古いhasUnsavedChangesを
   // 参照し続けるバグになる。保存直後もクリーン判定が即座に反映されるよう、stateとして保持する。
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
-  const currentSnapshot = dirtySnapshot(eventsState.events, stepTrialsState.trials);
+  const currentSnapshot = dirtySnapshot(eventsState.events, stepTrialsState.trials, {
+    ignorePelvisCorrection: ignorePelvisCorrectionForSteps,
+  });
   const hasUnsavedChanges =
     savedSnapshot !== null
       ? currentSnapshot !== savedSnapshot
@@ -142,6 +211,7 @@ export function App() {
         bodyMeasurements: analysisSettings.settings,
         events: eventsState.events,
         stepTrials: stepTrialsState.trials,
+        stepAnalysisSettings: { ignorePelvisCorrection: ignorePelvisCorrectionForSteps },
         isTimeEstimated: csv.isTimeEstimated,
         assumedSampleRateHz: csv.assumedSampleRateHz,
       }),
@@ -158,6 +228,7 @@ export function App() {
       analysisSettings.settings,
       eventsState.events,
       stepTrialsState.trials,
+      ignorePelvisCorrectionForSteps,
     ],
   );
 
@@ -175,6 +246,7 @@ export function App() {
       analysisSettings.setLengthUnit(data.bodyMeasurements.lengthUnit);
       eventsState.replaceEvents(data.events);
       stepTrialsState.replaceTrials(data.stepTrials);
+      setIgnorePelvisCorrectionForSteps(data.stepAnalysisSettings.ignorePelvisCorrection);
       if (csv.parsed) {
         (Object.entries(data.csv.columnMapping) as [CsvColumnKey, string | null][]).forEach(
           ([key, header]) => {
@@ -190,7 +262,7 @@ export function App() {
           csv.setColumnMapping("time", data.csv.columnMapping.time);
         }
       }
-      setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials));
+      setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials, data.stepAnalysisSettings));
     },
     [analysisSettings, eventsState, stepTrialsState, csv],
   );
@@ -334,6 +406,32 @@ export function App() {
                   </>
                 ) : (
                   <>
+                    {pelvisGimbalLockWarning && (
+                      <p className="step-analysis__pelvis-warning">
+                        <span className="validation-issue__badge">警告</span> {pelvisGimbalLockWarning}
+                      </p>
+                    )}
+                    <label className="step-analysis__pelvis-toggle">
+                      <input
+                        type="checkbox"
+                        checked={ignorePelvisCorrectionForSteps}
+                        onChange={(e) => setIgnorePelvisCorrectionForSteps(e.target.checked)}
+                      />
+                      骨盤回旋補正を使用しない（骨盤角度にジンバルロック等の異常がある場合）
+                    </label>
+                    <hr />
+                    <h3>歩幅波形</h3>
+                    <StepWaveformPanel
+                      state={stepWaveform}
+                      trials={stepTrialsState.trials}
+                      draft={stepTrialsState.draft}
+                      toCsvTime={sync.toCsvTime}
+                      baselineSelection={stepBaselineSelection}
+                      onBaselineSelectionChange={handleStepBaselineSelectionChange}
+                      onAutoDetect={handleAutoDetectStep}
+                      autoDetectMessage={stepAutoDetectMessage}
+                    />
+                    <hr />
                     <h3>ステップ動作結果</h3>
                     <StepResultsPanel trialsState={stepTrialsState} resultsState={stepResults} />
                     <hr />

@@ -624,6 +624,21 @@ body {
   color: #92400e;
 }
 
+.step-analysis__pelvis-warning {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.85rem;
+}
+
+.step-analysis__pelvis-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
 .event-registration__buttons {
   display: flex;
   gap: 0.5rem;
