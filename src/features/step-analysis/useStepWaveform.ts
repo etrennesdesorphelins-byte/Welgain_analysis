@@ -9,10 +9,18 @@ export interface StepWaveformState {
   /** 骨盤回旋角が未割当、または骨盤補正を用いない設定の場合はnull。 */
   pelvisCorrectedStride: number[] | null;
   isConfigIncomplete: boolean;
+  /** isConfigIncompleteがtrueの場合に、未入力の項目名を列挙する（UIでの具体的な案内用）。 */
+  missingFields: string[];
 }
 
-function empty(isConfigIncomplete: boolean): StepWaveformState {
-  return { csvTimes: [], rawStride: [], pelvisCorrectedStride: null, isConfigIncomplete };
+function empty(missingFields: string[]): StepWaveformState {
+  return {
+    csvTimes: [],
+    rawStride: [],
+    pelvisCorrectedStride: null,
+    isConfigIncomplete: true,
+    missingFields,
+  };
 }
 
 /**
@@ -27,19 +35,23 @@ export function useStepWaveform(
   ignorePelvisCorrection: boolean,
 ): StepWaveformState {
   return useMemo(() => {
-    if (!parsed || !mapping) return empty(true);
+    if (!parsed || !mapping) return empty(["CSVファイル"]);
     const { rightThighY, leftThighY, rightShankY, leftShankY, lowerBackX, time } = mapping;
-    if (!rightThighY || !leftThighY || !rightShankY || !leftShankY || !time) {
-      return empty(true);
-    }
-    if (settings.thighLength === null || settings.shankLength === null) {
-      return empty(true);
-    }
 
-    const thighLength = toCentimeters(settings.thighLength, settings.lengthUnit);
-    const shankLength = toCentimeters(settings.shankLength, settings.lengthUnit);
+    const missingFields: string[] = [];
+    if (!time) missingFields.push("時刻列");
+    if (!rightThighY) missingFields.push("右大腿角度");
+    if (!leftThighY) missingFields.push("左大腿角度");
+    if (!rightShankY) missingFields.push("右下腿角度");
+    if (!leftShankY) missingFields.push("左下腿角度");
+    if (settings.thighLength === null) missingFields.push("大腿長");
+    if (settings.shankLength === null) missingFields.push("下腿長");
+    if (missingFields.length > 0) return empty(missingFields);
 
-    const rawTimes = parsed.rows.map((r) => Number.parseFloat(r[time]));
+    const thighLength = toCentimeters(settings.thighLength!, settings.lengthUnit);
+    const shankLength = toCentimeters(settings.shankLength!, settings.lengthUnit);
+
+    const rawTimes = parsed.rows.map((r) => Number.parseFloat(r[time!]));
     const csvTimes = toRelativeSeconds(rawTimes);
 
     const columnValues = (header: string) => parsed.rows.map((r) => Number.parseFloat(r[header]));
@@ -48,16 +60,16 @@ export function useStepWaveform(
     const pelvisWidth = usePelvis ? toCentimeters(settings.pelvisWidth!, settings.lengthUnit) : 0;
 
     const { rawStride, pelvisCorrectedStride } = computeContinuousStride(
-      columnValues(rightThighY),
-      columnValues(leftThighY),
-      columnValues(rightShankY),
-      columnValues(leftShankY),
+      columnValues(rightThighY!),
+      columnValues(leftThighY!),
+      columnValues(rightShankY!),
+      columnValues(leftShankY!),
       usePelvis ? columnValues(lowerBackX!) : null,
       thighLength,
       shankLength,
       pelvisWidth,
     );
 
-    return { csvTimes, rawStride, pelvisCorrectedStride, isConfigIncomplete: false };
+    return { csvTimes, rawStride, pelvisCorrectedStride, isConfigIncomplete: false, missingFields: [] };
   }, [parsed, mapping, settings, ignorePelvisCorrection]);
 }

@@ -8,10 +8,18 @@ export interface StrideWaveformState {
   rawStride: number[];
   pelvisCorrectedStride: number[];
   isConfigIncomplete: boolean;
+  /** isConfigIncompleteがtrueの場合に、未入力の項目名を列挙する（UIでの具体的な案内用）。 */
+  missingFields: string[];
 }
 
-function empty(isConfigIncomplete: boolean): StrideWaveformState {
-  return { csvTimes: [], rawStride: [], pelvisCorrectedStride: [], isConfigIncomplete };
+function empty(missingFields: string[]): StrideWaveformState {
+  return {
+    csvTimes: [],
+    rawStride: [],
+    pelvisCorrectedStride: [],
+    isConfigIncomplete: true,
+    missingFields,
+  };
 }
 
 /**
@@ -24,36 +32,48 @@ export function useStrideWaveform(
   settings: AnalysisSettings,
 ): StrideWaveformState {
   return useMemo(() => {
-    if (!parsed || !mapping) return empty(true);
+    if (!parsed || !mapping) return empty(["CSVファイル"]);
     const { rightThighY, leftThighY, rightShankY, leftShankY, lowerBackX, time } = mapping;
-    if (!rightThighY || !leftThighY || !rightShankY || !leftShankY || !lowerBackX || !time) {
-      return empty(true);
-    }
-    if (settings.thighLength === null || settings.shankLength === null || settings.pelvisWidth === null) {
-      return empty(true);
-    }
 
-    const thighLength = toCentimeters(settings.thighLength, settings.lengthUnit);
-    const shankLength = toCentimeters(settings.shankLength, settings.lengthUnit);
-    const pelvisWidth = toCentimeters(settings.pelvisWidth, settings.lengthUnit);
+    const missingFields: string[] = [];
+    if (!time) missingFields.push("時刻列");
+    if (!rightThighY) missingFields.push("右大腿角度");
+    if (!leftThighY) missingFields.push("左大腿角度");
+    if (!rightShankY) missingFields.push("右下腿角度");
+    if (!leftShankY) missingFields.push("左下腿角度");
+    if (!lowerBackX) missingFields.push("骨盤回旋角");
+    if (settings.thighLength === null) missingFields.push("大腿長");
+    if (settings.shankLength === null) missingFields.push("下腿長");
+    if (settings.pelvisWidth === null) missingFields.push("骨盤幅");
+    if (missingFields.length > 0) return empty(missingFields);
 
-    const rawTimes = parsed.rows.map((r) => Number.parseFloat(r[time]));
+    const thighLength = toCentimeters(settings.thighLength!, settings.lengthUnit);
+    const shankLength = toCentimeters(settings.shankLength!, settings.lengthUnit);
+    const pelvisWidth = toCentimeters(settings.pelvisWidth!, settings.lengthUnit);
+
+    const rawTimes = parsed.rows.map((r) => Number.parseFloat(r[time!]));
     const csvTimes = toRelativeSeconds(rawTimes);
 
     const columnValues = (header: string) => parsed.rows.map((r) => Number.parseFloat(r[header]));
 
     const { rawStride, pelvisCorrectedStride } = computeContinuousStride(
-      columnValues(rightThighY),
-      columnValues(leftThighY),
-      columnValues(rightShankY),
-      columnValues(leftShankY),
-      columnValues(lowerBackX),
+      columnValues(rightThighY!),
+      columnValues(leftThighY!),
+      columnValues(rightShankY!),
+      columnValues(leftShankY!),
+      columnValues(lowerBackX!),
       thighLength,
       shankLength,
       pelvisWidth,
     );
 
     // 歩行解析ではlowerBackXを必須列としているため、pelvisCorrectedStrideはnullにならない。
-    return { csvTimes, rawStride, pelvisCorrectedStride: pelvisCorrectedStride ?? [], isConfigIncomplete: false };
+    return {
+      csvTimes,
+      rawStride,
+      pelvisCorrectedStride: pelvisCorrectedStride ?? [],
+      isConfigIncomplete: false,
+      missingFields: [],
+    };
   }, [parsed, mapping, settings]);
 }

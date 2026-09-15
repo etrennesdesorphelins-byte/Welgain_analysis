@@ -29,7 +29,8 @@ export function StrideWaveformPanel({
   if (state.isConfigIncomplete) {
     return (
       <p className="waveform-panel__empty">
-        歩幅波形を表示するには、CSV列割当（大腿・下腿・骨盤角度、時刻）と身体計測値をすべて入力してください。
+        歩幅波形を表示するには、CSV列割当と身体計測値をすべて入力してください。
+        未入力の項目: {state.missingFields.join("、")}
       </p>
     );
   }

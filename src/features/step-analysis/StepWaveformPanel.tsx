@@ -42,7 +42,8 @@ export function StepWaveformPanel({
   if (state.isConfigIncomplete) {
     return (
       <p className="waveform-panel__empty">
-        歩幅波形を表示するには、CSV列割当（大腿・下腿角度、時刻）と大腿長・下腿長を入力してください。
+        歩幅波形を表示するには、CSV列割当と大腿長・下腿長を入力してください。
+        未入力の項目: {state.missingFields.join("、")}
       </p>
     );
   }
