@@ -76,7 +76,15 @@ export function RawWaveformChart({
   playheadCsvTimeSec,
 }: RawWaveformChartProps) {
   const [dragStartSec, setDragStartSec] = useState<number | null>(null);
-  const maxTime = csvTimes.length > 0 ? csvTimes[csvTimes.length - 1] : 1;
+  // 時刻列に欠損値（NaN）が混在する場合、末尾の値がNaNだと横軸スケール全体が崩れるため、
+  // 有限な時刻の中での最大値を使う（末尾以外にNaNが混じっていても、有限値は時系列順のまま）。
+  const maxTime = useMemo(() => {
+    let max = -Infinity;
+    for (const t of csvTimes) {
+      if (Number.isFinite(t) && t > max) max = t;
+    }
+    return Number.isFinite(max) ? max : 1;
+  }, [csvTimes]);
 
   const { minY, maxY } = useMemo(() => {
     let min = Infinity;
