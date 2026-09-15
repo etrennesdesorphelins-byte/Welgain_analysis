@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ColumnMapping, ParsedCsv } from "../domain/csv";
-import { CSV_COLUMN_DEFINITIONS } from "../domain/csv";
+import { applySyntheticTimeColumn, CSV_COLUMN_DEFINITIONS, SYNTHETIC_TIME_COLUMN } from "../domain/csv";
 import { validateCsv } from "../features/file-import/csvValidation";
 
 function emptyMapping(): ColumnMapping {
@@ -26,6 +26,19 @@ describe("validateCsv", () => {
 
     expect(result.hasBlockingError).toBe(true);
     expect(result.issues.some((i) => i.code === "missing-time-column")).toBe(true);
+  });
+
+  it("時刻列が元々存在しないCSVでも、合成時刻列を適用すれば解析を継続できる", () => {
+    // 時刻列に該当するヘッダ自体が無いCSV（missing-time-column相当）を想定する。
+    const rows = Array.from({ length: 5 }, (_, i) => ({ angle: String(i) }));
+    const parsed = applySyntheticTimeColumn(makeParsed(rows), 20);
+    const mapping = { ...emptyMapping(), time: SYNTHETIC_TIME_COLUMN, rightThighY: "angle" };
+    const result = validateCsv(parsed, mapping);
+
+    expect(result.hasBlockingError).toBe(false);
+    expect(result.issues.some((i) => i.code === "missing-time-column")).toBe(false);
+    expect(result.durationSec).toBeCloseTo(0.2, 5);
+    expect(result.estimatedSampleRateHz).toBeCloseTo(20, 5);
   });
 
   it("有効行が2行未満の場合はブロッキングエラーになる", () => {

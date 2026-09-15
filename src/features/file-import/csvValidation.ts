@@ -32,7 +32,10 @@ export function validateCsv(
     issues.push({
       severity: "error",
       code: "missing-time-column",
-      message: "時刻列が割り当てられていません。列割当を確認してください。",
+      message:
+        "時刻列が割り当てられていません。CSVに時刻列が含まれる場合は列割当を確認してください。" +
+        "CSVに時刻列自体が含まれない場合は、下記のフォームから仮定サンプリング周波数を指定して" +
+        "代替の時刻列を生成できます。",
     });
     return {
       issues,

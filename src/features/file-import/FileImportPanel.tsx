@@ -141,7 +141,9 @@ export function FileImportPanel({
           </>
         )}
         {csv.validation && <ValidationIssueList issues={csv.validation.issues} />}
-        {csv.validation?.issues.some((i) => i.code === "no-valid-time-progression") &&
+        {csv.validation?.issues.some(
+          (i) => i.code === "no-valid-time-progression" || i.code === "missing-time-column",
+        ) &&
           !csv.isTimeEstimated && <TimeRecoveryForm onApply={csv.applySyntheticTime} />}
       </div>
     </section>
