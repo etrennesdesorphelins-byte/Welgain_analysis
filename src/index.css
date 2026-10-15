@@ -645,6 +645,14 @@ body {
   font-size: 0.85rem;
 }
 
+.file-import-panel__pelvis-correction {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
 .step-analysis__pelvis-toggle {
   display: flex;
   align-items: center;

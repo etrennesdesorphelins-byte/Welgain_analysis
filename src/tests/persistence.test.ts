@@ -21,6 +21,7 @@ function makeValidState(): SavedAnalysisState {
       columnMapping: { ...createEmptyColumnMapping(), time: "UnixTime" },
       isTimeEstimated: false,
       assumedSampleRateHz: null,
+      isPelvisAngleCorrected: false,
     },
     bodyMeasurements: { thighLength: 52, shankLength: 49, pelvisWidth: 31, lengthUnit: "cm" },
     events: [{ id: "e1", type: "Rt_IC", videoTimeSec: 0, estimatedFrame: 0, csvTimeSec: 0 }],
@@ -62,6 +63,15 @@ describe("parseSavedState", () => {
     const result = parseSavedState(JSON.parse(JSON.stringify(state)));
     expect(result.success).toBe(true);
     expect(result.data?.stepAnalysisSettings).toEqual({ ignorePelvisCorrection: false });
+  });
+
+  it("骨盤回旋角の補正フラグが無い旧形式の保存データも既定値falseで読み込める（後方互換）", () => {
+    const state = makeValidState();
+    const csv = { ...state.csv } as Record<string, unknown>;
+    delete csv.isPelvisAngleCorrected;
+    const result = parseSavedState(JSON.parse(JSON.stringify({ ...state, csv })));
+    expect(result.success).toBe(true);
+    expect(result.data?.csv.isPelvisAngleCorrected).toBe(false);
   });
 
   it("足部離床・足部ICが無い旧形式のステップ試行も既定値nullで読み込める（後方互換）", () => {

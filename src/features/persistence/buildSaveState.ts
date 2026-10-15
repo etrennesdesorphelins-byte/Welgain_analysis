@@ -19,6 +19,7 @@ export interface BuildSaveStateInput {
   stepAnalysisSettings: { ignorePelvisCorrection: boolean };
   isTimeEstimated: boolean;
   assumedSampleRateHz: number | null;
+  isPelvisAngleCorrected: boolean;
 }
 
 /** 要件定義書16章「出力に含める再現性情報」を満たす保存状態を組み立てる。動画・CSV本体は含めない。 */
@@ -50,6 +51,7 @@ export function buildSaveState(input: BuildSaveStateInput): SavedAnalysisState {
       columnMapping: input.columnMapping ?? createEmptyColumnMapping(),
       isTimeEstimated: input.isTimeEstimated,
       assumedSampleRateHz: input.assumedSampleRateHz,
+      isPelvisAngleCorrected: input.isPelvisAngleCorrected,
     },
     bodyMeasurements: input.bodyMeasurements,
     events: input.events,

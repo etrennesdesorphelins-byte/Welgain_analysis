@@ -6,6 +6,7 @@ import {
   type ParsedCsv,
   type ValidationIssue,
 } from "../../domain/csv";
+import { unwrapAngleSeries } from "../../domain/pelvisAngleCorrection";
 
 const SUSPICIOUS_ANGLE_ABS_DEG = 150;
 /** サンプリング間隔の相対ばらつき（中央値に対する比）がこれを超えたら警告。 */
@@ -187,11 +188,16 @@ export function validateCsv(
     }
 
     if (outOfRangeCount > 0) {
+      // 骨盤回旋角が±180°をまたいで符号反転している場合は、ジンバルロックではなく
+      // 計測開始時の向きによるものの可能性が高いため、補正オプションを案内する。
+      const isPelvisWrapped = def.key === "lowerBackX" && unwrapAngleSeries(values).wrapCount > 0;
       issues.push({
         severity: "warning",
         code: "suspicious-angle-range",
         columnKey: def.key,
-        message: `${def.label}（列:${key}）が想定範囲（±${SUSPICIOUS_ANGLE_ABS_DEG}度）を超える値が${outOfRangeCount}件あります。ジンバルロック等の可能性があります。単位・列割当を確認してください。`,
+        message: isPelvisWrapped
+          ? `${def.label}（列:${key}）が±180°をまたいで符号が反転しています。計測開始時の向きがキャリブレーションと反対だった可能性があります。「骨盤回旋角を補正する」にチェックを入れてください。`
+          : `${def.label}（列:${key}）が想定範囲（±${SUSPICIOUS_ANGLE_ABS_DEG}度）を超える値が${outOfRangeCount}件あります。ジンバルロック等の可能性があります。単位・列割当を確認してください。`,
       });
     }
   }

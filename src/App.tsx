@@ -210,6 +210,7 @@ export function App() {
         stepAnalysisSettings: { ignorePelvisCorrection: ignorePelvisCorrectionForSteps },
         isTimeEstimated: csv.isTimeEstimated,
         assumedSampleRateHz: csv.assumedSampleRateHz,
+        isPelvisAngleCorrected: csv.isPelvisAngleCorrected,
       }),
     [
       subjectId,
@@ -221,6 +222,7 @@ export function App() {
       csv.mapping,
       csv.isTimeEstimated,
       csv.assumedSampleRateHz,
+      csv.isPelvisAngleCorrected,
       analysisSettings.settings,
       eventsState.events,
       stepTrialsState.trials,
@@ -257,6 +259,7 @@ export function App() {
         } else {
           csv.setColumnMapping("time", data.csv.columnMapping.time);
         }
+        csv.setPelvisAngleCorrected(data.csv.isPelvisAngleCorrected);
       }
       setSavedSnapshot(dirtySnapshot(data.events, data.stepTrials, data.stepAnalysisSettings));
     },

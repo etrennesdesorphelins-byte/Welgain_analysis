@@ -76,6 +76,8 @@ export const savedAnalysisStateSchema = z.object({
     /** 時刻列が実測ではなく、行番号と仮定周波数から生成した推定値であるか（要件定義書16章）。 */
     isTimeEstimated: z.boolean(),
     assumedSampleRateHz: z.number().nullable(),
+    /** 骨盤回旋角の補正オプション（±180°の符号反転を連続化し、先頭値を0°とする）を適用したか。 */
+    isPelvisAngleCorrected: z.boolean().default(false),
   }),
   bodyMeasurements: analysisSettingsSchema,
   events: z.array(gaitEventSchema),

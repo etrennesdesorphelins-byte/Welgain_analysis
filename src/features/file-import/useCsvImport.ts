@@ -7,6 +7,7 @@ import {
   type CsvValidationResult,
   type ParsedCsv,
 } from "../../domain/csv";
+import { applyPelvisAngleCorrection } from "../../domain/pelvisAngleCorrection";
 import { autoMapColumns } from "./csvColumnMapping";
 import { parseCsvFile } from "./csvParser";
 import { validateCsv } from "./csvValidation";
@@ -21,6 +22,12 @@ export interface CsvImportState {
   isTimeEstimated: boolean;
   /** isTimeEstimated時に使用した仮定サンプリング周波数(Hz)。 */
   assumedSampleRateHz: number | null;
+  /**
+   * 骨盤回旋角の補正オプション（±180°の符号反転を連続化し、CSV先頭の値を0°とする）を適用しているか。
+   * 有効時はparsedの骨盤回旋角列が補正後の値に置き換わる。
+   */
+  isPelvisAngleCorrected: boolean;
+  setPelvisAngleCorrected: (enabled: boolean) => void;
   loadFile: (file: File) => Promise<void>;
   setColumnMapping: (key: CsvColumnKey, header: string | null) => void;
   /** 時刻列が使用不能な場合の代替：行番号×(1/assumedSampleRateHz)で相対秒を生成し、時刻列として採用する。 */
@@ -29,18 +36,20 @@ export interface CsvImportState {
 }
 
 export function useCsvImport(): CsvImportState {
-  const [parsed, setParsed] = useState<ParsedCsv | null>(null);
+  const [rawParsed, setParsed] = useState<ParsedCsv | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isTimeEstimated, setIsTimeEstimated] = useState(false);
   const [assumedSampleRateHz, setAssumedSampleRateHz] = useState<number | null>(null);
+  const [isPelvisAngleCorrected, setPelvisAngleCorrected] = useState(false);
 
   const loadFile = useCallback(async (file: File) => {
     setIsLoading(true);
     setLoadError(null);
     setIsTimeEstimated(false);
     setAssumedSampleRateHz(null);
+    setPelvisAngleCorrected(false);
     try {
       const result = await parseCsvFile(file);
       setParsed(result);
@@ -76,7 +85,14 @@ export function useCsvImport(): CsvImportState {
     setLoadError(null);
     setIsTimeEstimated(false);
     setAssumedSampleRateHz(null);
+    setPelvisAngleCorrected(false);
   }, []);
+
+  const lowerBackXColumn = mapping?.lowerBackX ?? null;
+  const parsed = useMemo(() => {
+    if (!rawParsed || !isPelvisAngleCorrected || !lowerBackXColumn) return rawParsed;
+    return applyPelvisAngleCorrection(rawParsed, lowerBackXColumn);
+  }, [rawParsed, isPelvisAngleCorrected, lowerBackXColumn]);
 
   const validation = useMemo(() => {
     if (!parsed || !mapping) return null;
@@ -91,6 +107,8 @@ export function useCsvImport(): CsvImportState {
     loadError,
     isTimeEstimated,
     assumedSampleRateHz,
+    isPelvisAngleCorrected,
+    setPelvisAngleCorrected,
     loadFile,
     setColumnMapping,
     applySyntheticTime,

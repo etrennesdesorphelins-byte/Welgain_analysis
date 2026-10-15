@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ColumnMapping, ParsedCsv } from "../domain/csv";
 import { applySyntheticTimeColumn, CSV_COLUMN_DEFINITIONS, SYNTHETIC_TIME_COLUMN } from "../domain/csv";
+import { applyPelvisAngleCorrection } from "../domain/pelvisAngleCorrection";
 import { validateCsv } from "../features/file-import/csvValidation";
 
 function emptyMapping(): ColumnMapping {
@@ -140,5 +141,26 @@ describe("validateCsv", () => {
     expect(issue).toBeDefined();
     expect(issue?.columnKey).toBe("lowerBackX");
     expect(issue?.message).toContain("骨盤回旋角");
+  });
+
+  it("骨盤回旋角が±180°をまたいで符号反転している場合は、補正オプションを案内する", () => {
+    const values = ["-174.8", "-177.6", "-178.8", "179.9", "177.4", "174", "170.5", "175.9"];
+    const rows = values.map((v, i) => ({ time: String(i * 0.05), pelvis: v }));
+    const mapping = { ...emptyMapping(), time: "time", lowerBackX: "pelvis" };
+    const result = validateCsv(makeParsed(rows), mapping);
+
+    const issue = result.issues.find((i) => i.code === "suspicious-angle-range");
+    expect(issue?.columnKey).toBe("lowerBackX");
+    expect(issue?.message).toContain("骨盤回旋角を補正する");
+  });
+
+  it("補正オプション適用後の骨盤回旋角では警告しない", () => {
+    const values = ["-174.8", "-177.6", "-178.8", "179.9", "177.4", "174", "170.5", "175.9"];
+    const rows = values.map((v, i) => ({ time: String(i * 0.05), pelvis: v }));
+    const mapping = { ...emptyMapping(), time: "time", lowerBackX: "pelvis" };
+    const corrected = applyPelvisAngleCorrection(makeParsed(rows), "pelvis");
+    const result = validateCsv(corrected, mapping);
+
+    expect(result.issues.some((i) => i.code === "suspicious-angle-range")).toBe(false);
   });
 });

@@ -138,6 +138,15 @@ export function FileImportPanel({
               mapping={csv.mapping}
               onChange={csv.setColumnMapping}
             />
+            <label className="file-import-panel__pelvis-correction">
+              <input
+                type="checkbox"
+                checked={csv.isPelvisAngleCorrected}
+                disabled={!csv.mapping.lowerBackX}
+                onChange={(e) => csv.setPelvisAngleCorrected(e.target.checked)}
+              />
+              骨盤回旋角を補正する（±180°をまたいだ符号反転を連続化し、計測開始時の値を0°とする）
+            </label>
           </>
         )}
         {csv.validation && <ValidationIssueList issues={csv.validation.issues} />}
